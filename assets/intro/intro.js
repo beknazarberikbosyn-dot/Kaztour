@@ -1,6 +1,7 @@
-/* KazTour intro.
-   Earth close-up → dive through the clouds → Kazakhstan lights up → departure →
-   level flight → the smoke trail writes "KazTour" in clouds. When the intro ends the
+/* Samruk Travel intro.
+   Earth close-up → dive through the clouds to just above Kazakhstan → Kazakhstan lights
+   up → departure → the camera swings in behind the climbing airliner while the Earth below
+   gives way to blue sky → level flight → the smoke trail writes "Samruk Travel" in clouds. When the intro ends the
    same canvas stays behind the page as the sky, and the cloud title keeps billowing.
 
    Page contract (index.html):
@@ -50,13 +51,14 @@ const col = (hex) => new THREE.Color(hex);
 /* ------------------------------------------------------------------ timeline (s) */
 const T = {
   spinEnd: 2.4,      // Earth close-up spin
-  diveEnd: 4.5,      // through the clouds, settle over Eurasia
-  kzIn: 4.25, kzRise: 4.6, kzRiseEnd: 5.5,
-  dot: 5.25, tagIn: 5.5, tagOut: 7.4,
-  planeStart: 6.0, planeEnd: 9.0,
-  wipeStart: 8.55, swap: 9.05, wipeEnd: 9.75,
+  diveEnd: 4.7,      // dive through the clouds, settle just above Kazakhstan
+  kzIn: 4.5, kzRise: 4.8, kzRiseEnd: 5.7,
+  dot: 5.4, tagIn: 5.65, tagOut: 7.5,
+  planeStart: 6.1,   // take-off from the dot
+  chase: 7.5, chaseEnd: 9.4,   // camera swings in beside the climbing airliner
+  swap: 9.4, blendEnd: 10.6,   // Earth below dissolves into the cloud sea and blue sky
 };
-const SKY_CRUISE = 3.05;   // level flight, seconds after the swap
+const SKY_CRUISE = 3.2;    // level flight, seconds after the swap
 const MORPH = 1.35;        // trail → letter morph time
 
 /* ------------------------------------------------------------------ DOM */
@@ -199,7 +201,7 @@ void main() {
   vec3 p = aPos;
   float size = aD.x, rot = aD.y, alpha = aE.y, stretch = aE.z;
 #ifdef CLOUD
-  float depth = max(uDist - (p.z - uCam.z), 1.0);
+  float depth = max(uCam.z - p.z, 1.0);
   float wrap = uViewW * depth / uDist * 1.8 + size * 2.0;
   p.x += uWind * uTime * (0.55 + aE.w);
   p.x = uCam.x + mod(p.x - uCam.x + wrap * 0.5, wrap) - wrap * 0.5;
@@ -368,7 +370,7 @@ space.cam = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.01, 400)
 space.earth = new THREE.Group();
 space.scene.add(space.earth);
 const SUN_WORLD = latLonDir(12, 30);
-const KZ_H = 0.014;                       // extrusion height (Earth radius = 1)
+const KZ_H = 0.009;                       // extrusion height (Earth radius = 1)
 const ASTANA = latLonDir(51.17, 71.43);
 
 function buildStars() {
@@ -428,6 +430,12 @@ uniform sampler2D uDay, uNight, uWater, uBump, uClouds;
 uniform vec3 uSun, uCam;
 uniform float uCloudShift;
 varying vec2 vUv; varying vec3 vPos;
+float hash3(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+float vnoise(vec3 x){
+  vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(hash3(i), hash3(i + vec3(1,0,0)), f.x), mix(hash3(i + vec3(0,1,0)), hash3(i + vec3(1,1,0)), f.x), f.y),
+             mix(mix(hash3(i + vec3(0,0,1)), hash3(i + vec3(1,0,1)), f.x), mix(hash3(i + vec3(0,1,1)), hash3(i + vec3(1,1,1)), f.x), f.y), f.z);
+}
 void main(){
   vec3 N0 = normalize(vPos);
   float h = texture2D(uBump, vUv).r;
@@ -445,6 +453,9 @@ void main(){
   vec3 albedo = texture2D(uDay, vUv).rgb;
   float water = texture2D(uWater, vUv).r;
   albedo = mix(albedo, albedo * vec3(0.72, 0.86, 1.05), water * 0.6);
+  // fine terrain detail so the land stays crisp when the camera is close
+  float fine = vnoise(vPos * 260.0) * 0.5 + vnoise(vPos * 820.0) * 0.32 + vnoise(vPos * 2300.0) * 0.18;
+  albedo *= mix(1.0, 0.84 + 0.32 * fine, 1.0 - water);
 
   // cloud shadows: sample the cloud map a little toward the sun
   vec3 east = normalize(vec3(-N0.z, 0.0, N0.x) + 1e-5);
@@ -627,12 +638,12 @@ function buildKazakhstan(dayTex) {
         vec3 c;
         float a = uAlpha;
         if (vWall > 0.5) {
-          c = gold * (1.1 + 2.4 * vTop) * (0.4 + 0.6 * uRise);
+          c = gold * (0.9 + 1.5 * vTop) * (0.4 + 0.6 * uRise);
         } else {
-          float edge = exp(-vEdge * 2.2);
+          float edge = exp(-vEdge * 3.2);
           float sweep = exp(-pow((vDir.x * 0.7 + vDir.y * 0.7 + vDir.z * 0.1) * 7.0 - mod(uTime * 1.3, 18.0) + 9.0, 2.0) * 1.2);
-          c = gold * (0.16 + lum * 1.25) * lit + gold * edge * 1.15 + vec3(1.0, 0.85, 0.5) * sweep * 0.4;
-          a *= 0.86;
+          c = gold * (0.12 + lum * 1.1) * lit + gold * edge * 1.3 + vec3(1.0, 0.85, 0.5) * sweep * 0.3;
+          a *= 0.42 + 0.45 * edge;
         }
         gl_FragColor = vec4(c, a);
         #include <tonemapping_fragment>
@@ -687,21 +698,26 @@ function buildKazakhstan(dayTex) {
   space.earth.add(space.dot);
 }
 
-/* -------------------------------- stratosphere clouds the camera dives through */
+/* -------------------------------- the one cloud layer the camera dives through */
 function buildDiveClouds() {
-  const mat = puffMaterial({ lit: '#ffffff', shade: '#9fb2d6', rim: '#dfe7f5' });
+  const mat = puffMaterial({ lit: '#ffffff', shade: '#a9b8d8', rim: '#dfe7f5' });
   mat.uniforms.uOpacity.value = 0;
   space.diveMat = mat;
-  const r = rng(21), n = 90;
+  const r = rng(21), n = small ? 110 : 160;
   const b = new PuffBatch(n, mat, 6);
-  const axis = latLonDir(26.5, 64);
-  const u = new THREE.Vector3(0, 1, 0).cross(axis).normalize(), v = axis.clone().cross(u).normalize();
+  const p = new THREE.Vector3(), q = new THREE.Vector3(), ax = new THREE.Vector3(), u = new THREE.Vector3(), v = new THREE.Vector3();
   b.begin();
   for (let i = 0; i < n; i++) {
-    const along = lerp(2.4, 3.05, r()) * DM;
-    const a = r() * Math.PI * 2, rad = 0.07 + Math.pow(r(), 0.7) * 0.42;
-    const p = axis.clone().multiplyScalar(along).addScaledVector(u, Math.cos(a) * rad).addScaledVector(v, Math.sin(a) * rad * 0.8);
-    b.push(p.x, p.y, p.z, 0.1 + r() * 0.22, r() * 6.28, Math.floor(r() * 4), 0.9 + r() * 0.25, 0.25, 0.6, 1.3);
+    const e = lerp(0.6, 0.86, r());
+    divePos(e, p);
+    divePos(e + 0.01, q);
+    ax.subVectors(q, p).normalize();
+    u.set(0, 1, 0).cross(ax).normalize();
+    v.copy(ax).cross(u).normalize();
+    const rr = p.length();
+    const a = r() * Math.PI * 2, rad = (0.015 + Math.pow(r(), 0.8) * 0.2) * rr;
+    p.addScaledVector(u, Math.cos(a) * rad).addScaledVector(v, Math.sin(a) * rad);
+    b.push(p.x, p.y, p.z, (0.05 + r() * 0.1) * rr, r() * 6.28, Math.floor(r() * 4), 0.95 + r() * 0.2, 0.3, 0.75, 1.35);
   }
   b.end();
   space.dive = b;
@@ -711,7 +727,7 @@ function buildDiveClouds() {
 /* -------------------------------- space contrail */
 function buildSpaceTrail() {
   const mat = puffMaterial({ lit: '#ffffff', shade: '#8aa0c8', rim: '#dfe7f5' });
-  space.trail = new PuffBatch(700, mat, 7);
+  space.trail = new PuffBatch(1100, mat, 7);
   space.trailP = [];
   space.earth.add(space.trail.mesh);
 }
@@ -866,7 +882,7 @@ function buildCloudSea(p) {
 /* -------------------------------- layout for the flight and the title */
 function skyLayout() {
   const W = innerWidth, H = innerHeight;
-  const viewH = 2 * sky.D * Math.tan((sky.cam.fov * D2R) / 2);
+  const viewH = 2 * sky.D * Math.tan((30 * D2R) / 2);   // the side-view lens, whatever the camera is doing now
   const viewW = viewH * (W / H);
   const k = clamp(viewW / 38, 0.3, 1.15);
   let cy = H * 0.36, sh = H * 0.5;
@@ -877,8 +893,7 @@ function skyLayout() {
   }
   const textY = (0.5 - cy / H) * viewH;
   const stageH = (sh / H) * viewH;
-  const textW = Math.min(viewW * (W < 600 ? 0.94 : 0.8), stageH * 0.8 * 3.1, 44);
-  return { W, H, viewH, viewW, k, textY, textW, worldPerPx: viewH / H };
+  return { W, H, viewH, viewW, k, textY, stageH, worldPerPx: viewH / H };
 }
 
 /* -------------------------------- the airliner's motion over the cloud sea */
@@ -894,19 +909,20 @@ function flightModel(L) {
   return {
     v, acc, scale, x0, y0, offset,
     camX(t) {
-      if (t <= SKY_CRUISE) return x0 - offset + v * t;
+      if (t <= SKY_CRUISE) return x0 - offset + v * Math.max(t, 0);
       const u = Math.min(t - SKY_CRUISE, 0.8);
       return xCamEnd + v * (u - (u * u) / 1.6);   // linear deceleration to a stop in 0.8 s
     },
     plane(t, o) {
       const te = Math.max(0, t - SKY_CRUISE);
       const ex = sstep(0, 1.7, te);
+      const tb = sstep(0.2, 1.4, t);                   // turbulence builds up after the hand-over
       o.x = x0 + v * t + 0.5 * acc * te * te;
-      o.y = y0 + Math.sin(t * 1.3) * 0.12 * k + Math.sin(t * 2.9 + 1) * 0.05 * k + ex * ex * 3.2 * k;
+      o.y = y0 + (Math.sin(t * 1.3) * 0.12 * k + Math.sin(t * 2.9 + 1) * 0.05 * k) * tb + ex * ex * 3.2 * k;
       o.z = ex * ex * 9 * k;
-      o.pitch = Math.sin(t * 1.1) * 0.012 + Math.sin(t * 17.0) * 0.0025 + ex * 0.07;
-      o.roll = Math.sin(t * 1.7) * 0.025 + Math.sin(t * 13.3) * 0.004 - ex * 0.06;
-      o.yaw = Math.sin(t * 0.9) * 0.01 - ex * 0.05;
+      o.pitch = (Math.sin(t * 1.1) * 0.012 + Math.sin(t * 17.0) * 0.0025) * tb + ex * 0.07;
+      o.roll = (Math.sin(t * 1.7) * 0.025 + Math.sin(t * 13.3) * 0.004) * tb - ex * 0.06;
+      o.yaw = Math.sin(t * 0.9) * 0.01 * tb - ex * 0.05;
       o.s = scale * (1 + ex * 0.15);
       return o;
     },
@@ -914,16 +930,18 @@ function flightModel(L) {
 }
 
 /* -------------------------------- cloud title */
-function rasterTitle(text) {
+function rasterTitle(lines) {
   const c = document.createElement('canvas');
-  const fs = 300, pad = 120, gap = 92;
+  const fs = 300, pad = 120, gap = 80, lineH = fs * 1.12;
   const x = c.getContext('2d', { willReadFrequently: true });
   const font = `700 ${fs}px "Fredoka", "Baloo 2", "Nunito", "Arial Rounded MT Bold", "Segoe UI", system-ui, sans-serif`;
   x.font = font;
-  const widths = [...text].map((ch) => x.measureText(ch).width);
-  const tw = widths.reduce((a, b) => a + b, 0) + gap * (text.length - 1);
-  c.width = Math.ceil(tw + pad * 2);
-  c.height = Math.ceil(fs * 1.05 + pad * 2);
+  const rows = lines.map((text) => {
+    const widths = [...text].map((ch) => x.measureText(ch).width);
+    return { text, widths, w: widths.reduce((a, b) => a + b, 0) + gap * (text.length - 1) };
+  });
+  c.width = Math.ceil(Math.max(...rows.map((r) => r.w)) + pad * 2);
+  c.height = Math.ceil(lineH * lines.length + pad * 2);
   x.font = font;
   x.textBaseline = 'middle';
   x.fillStyle = '#fff';
@@ -931,11 +949,14 @@ function rasterTitle(text) {
   x.strokeStyle = '#fff';
   x.lineJoin = 'round';
   x.lineWidth = fs * 0.04;
-  let cx = pad;
-  [...text].forEach((ch, i) => {
-    x.fillText(ch, cx, c.height / 2 + fs * 0.04);
-    x.strokeText(ch, cx, c.height / 2 + fs * 0.04);
-    cx += widths[i] + gap;
+  rows.forEach((row, li) => {
+    let cx = (c.width - row.w) / 2;
+    const cy = pad + lineH * (li + 0.5) + fs * 0.04;
+    [...row.text].forEach((ch, i) => {
+      x.fillText(ch, cx, cy);
+      x.strokeText(ch, cx, cy);
+      cx += row.widths[i] + gap;
+    });
   });
   const img = x.getImageData(0, 0, c.width, c.height).data;
   const W = c.width, H = c.height;
@@ -967,9 +988,11 @@ function rasterTitle(text) {
 }
 
 function buildTitle(L, F) {
-  const R = rasterTitle('KazTour');
+  const R = rasterTitle(['Samruk', 'Travel']);
   const r = rng(42);
-  const scale = L.textW / (R.x1 - R.x0);
+  const aspect = (R.x1 - R.x0) / (R.y1 - R.y0);
+  const textW = Math.min(L.viewW * (L.W < 600 ? 0.9 : 0.78), L.stageH * 0.84 * aspect, 46);
+  const scale = textW / (R.x1 - R.x0);
   const cxPx = (R.x0 + R.x1) / 2, cyPx = (R.y0 + R.y1) / 2;
   const toW = (px, py) => [(px - cxPx) * scale, L.textY - (py - cyPx) * scale];
   const dAt = (x, y) => R.d[(y | 0) * R.W + (x | 0)];
@@ -977,7 +1000,7 @@ function buildTitle(L, F) {
     x |= 0; y |= 0;
     return [dAt(x + 2, y) - dAt(x - 2, y), dAt(x, y + 2) - dAt(x, y - 2)];
   };
-  const target = small ? 1900 : 3400;
+  const target = small ? 2600 : 4400;
   let area = 0;
   for (let i = 0; i < R.W * R.H; i++) area += R.mask[i];
   const sp = Math.sqrt(area / (target * 0.62 * 0.866));
@@ -1087,48 +1110,6 @@ function trailTable(F) {
   };
 }
 
-/* ================================================================== WIPE (cloud transition) */
-const wipe = { scene: new THREE.Scene(), cam: new THREE.OrthographicCamera(-1, 1, 1, -1, -10, 10) };
-function buildWipe() {
-  const m = puffMaterial({ lit: '#ffffff', shade: '#b3a7df', rim: '#d8cdf3', depthTest: false });
-  wipe.batch = new PuffBatch(120, m, 10);
-  wipe.scene.add(wipe.batch.mesh);
-  const r = rng(9);
-  wipe.p = [];
-  for (let gy = -1.25; gy <= 1.25; gy += 0.36) {
-    for (let gx = -1.3; gx <= 1.3; gx += 0.36) {
-      const x = gx + (r() - 0.5) * 0.2, y = gy + (r() - 0.5) * 0.2;
-      const a = Math.atan2(y + 0.4, x - 0.3);
-      wipe.p.push({ x, y, from: [Math.cos(a) * 2.6, Math.sin(a) * 2.6 - 1.2], size: 0.62 + r() * 0.4, rot: r() * 6.28, v: Math.floor(r() * 4), b: 0.95 + r() * 0.2, delay: r() * 0.25 });
-    }
-  }
-  wipe.flat = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ color: 0xf2efff, transparent: true, opacity: 0, depthTest: false, toneMapped: false }));
-  wipe.flat.renderOrder = 9;
-  wipe.scene.add(wipe.flat);
-}
-function updateWipe(t) {
-  const a = innerWidth / innerHeight;
-  wipe.cam.left = -a; wipe.cam.right = a; wipe.cam.updateProjectionMatrix();
-  wipe.flat.scale.set(a + 0.1, 1.1, 1);
-  const pin = (t - T.wipeStart) / (T.swap - T.wipeStart);
-  const pout = clamp((t - T.swap) / (T.wipeEnd - T.swap), 0, 1);
-  wipe.batch.begin();
-  if (pin > 0 && pout < 1) {
-    for (const p of wipe.p) {
-      const k = easeOut(clamp((pin - p.delay * 0.6) / 0.85, 0, 1));
-      const ox = p.x * a, oy = p.y;
-      let x = lerp(ox + p.from[0] * a, ox, k), y = lerp(oy + p.from[1], oy, k);
-      const rad = Math.hypot(ox, oy) + 0.2;
-      x += (ox / rad) * pout * 1.9 * a;
-      y += (oy / rad) * pout * 1.9;
-      const s = p.size * (0.55 + 0.45 * k) * (1 + pout * 1.2) * Math.max(1, a * 0.8);
-      wipe.batch.push(x, y, 0, s, p.rot + pout * 0.6, p.v, p.b, 0.35, k * (1 - pout * pout));
-    }
-  }
-  wipe.batch.end();
-  wipe.flat.material.opacity = sstep(T.wipeStart + 0.28, T.swap, t) * (1 - sstep(T.swap, T.swap + 0.28, t)) * 0.92;
-}
-
 /* ================================================================== AIRLINER */
 let PLANE = null;
 async function loadPlane() {
@@ -1189,52 +1170,93 @@ function buildSpaceComposer() {
 
 /* -------------------------------- space choreography */
 const DM = clamp(Math.pow(1.35 / (innerWidth / innerHeight), 0.5), 1, 1.55);   // >1 on portrait screens
-const CAM_A = latLonDir(26, 64).multiplyScalar(3.35 * DM);
-const CAM_C = latLonDir(27, 64).multiplyScalar(2.3 * DM);
-const LOOK_C = latLonDir(50, 66).multiplyScalar(0.86);
 const tmpV = new THREE.Vector3(), tmpV2 = new THREE.Vector3(), tmpQ = new THREE.Quaternion(), tmpM = new THREE.Matrix4(), invM = new THREE.Matrix4();
-const X_AXIS = new THREE.Vector3(1, 0, 0);
+const X_AXIS = new THREE.Vector3(1, 0, 0), Y_AXIS = new THREE.Vector3(0, 1, 0);
 
-// departure path (Earth-local; the globe has stopped turning by then)
-const PATH = (() => {
-  const p0 = ASTANA.clone().multiplyScalar(1.0015 + KZ_H + 0.004);
-  const south = new THREE.Vector3(0, 1, 0).sub(ASTANA.clone().multiplyScalar(ASTANA.y)).normalize().negate();
-  const p1 = ASTANA.clone().multiplyScalar(1.05).addScaledVector(south, 0.16);
-  const p2 = latLonDir(36, 64).multiplyScalar(1.3);
-  const p3 = latLonDir(28.5, 74.5).multiplyScalar(1.66);
-  return new THREE.CubicBezierCurve3(p0, p1, p2, p3);
+// camera: far close-up of the globe → just above Kazakhstan, looking north over it
+const CAM_A_DIR = latLonDir(26, 64), CAM_A_R = 3.35 * DM;
+const CAM_C_DIR = latLonDir(37, 67), CAM_C_R = 1 + 0.2 * DM;
+const LOOK_C = latLonDir(48.6, 69);
+const UP_C = CAM_C_DIR.clone();
+/** Point on the dive path, e = 0 (globe close-up) … 1 (above Kazakhstan). Radius moves in log space. */
+function divePos(e, out = new THREE.Vector3()) {
+  out.copy(CAM_A_DIR).lerp(CAM_C_DIR, e).normalize();
+  return out.multiplyScalar(Math.exp(lerp(Math.log(CAM_A_R), Math.log(CAM_C_R), e)));
+}
+
+// the chase pose, in airliner units (× its scale), shared by the space and sky scenes so the
+// airliner stays pixel-identical while the background changes from Earth to sky
+const CHASE = { off: new THREE.Vector3(-5.5, 2.0, 27), look: new THREE.Vector3(1.6, 0.2, 0), fov: 34 };
+CHASE.off.multiplyScalar(clamp(1.45 / (innerWidth / innerHeight), 1, 2.8));   // stand further back on narrow screens
+
+// departure: from Astana heading east (slightly toward the camera), climbing, then levelling off
+const PL = (() => {
+  const A = ASTANA.clone();
+  const east = latLonDir(51.17, 71.93).sub(A);
+  east.addScaledVector(A, -east.dot(A)).normalize();
+  const south = Y_AXIS.clone().addScaledVector(A, -A.y).normalize().negate();
+  const head = east.multiplyScalar(Math.cos(14 * D2R)).addScaledVector(south, Math.sin(14 * D2R)).normalize();
+  return { A, axis: A.clone().cross(head).normalize() };
 })();
+function planeSpacePos(t, out) {
+  const tp = Math.max(0, t - T.planeStart);
+  const g = 0.012 * tp + 0.043 * (tp - 0.6 * (1 - Math.exp(-tp / 0.6)));    // rolls, then speeds up
+  const h = 0.0045 + 0.064 * (1 - Math.exp(-(tp / 1.4) * (tp / 1.4)));       // climbs, then levels off
+  return out.copy(PL.A).applyAxisAngle(PL.axis, g).multiplyScalar(1.0015 + KZ_H + h);
+}
+const PS = { pos: new THREE.Vector3(), fwd: new THREE.Vector3(), up: new THREE.Vector3(), right: new THREE.Vector3(), s: 0, q: new THREE.Quaternion() };
+function planeSpacePose(t) {
+  planeSpacePos(t, PS.pos);
+  planeSpacePos(t + 0.02, PS.fwd).sub(PS.pos).normalize();
+  PS.up.copy(PS.pos).normalize();
+  PS.right.copy(PS.fwd).cross(PS.up).normalize();
+  PS.up.copy(PS.right).cross(PS.fwd).normalize();
+  tmpM.makeBasis(PS.fwd, PS.up, PS.right);
+  PS.q.setFromRotationMatrix(tmpM);
+  PS.s = lerp(0.0028, 0.0145, sstep(0, 3.0, t - T.planeStart));
+  return PS;
+}
 
+const camPos0 = new THREE.Vector3(), camLook0 = new THREE.Vector3(), camUp0 = new THREE.Vector3();
+const chasePos = new THREE.Vector3(), chaseLook = new THREE.Vector3();
 function updateSpace(t, dt) {
   const cam = space.cam;
   // Earth spin: fast at first, settling by the end of the dive
   const spin = clamp(t / T.diveEnd, 0, 1);
   space.earth.rotation.y = -70 * D2R * Math.pow(1 - spin, 2);
 
-  // dive
-  const dv = sstep(T.spinEnd - 0.15, T.diveEnd, t);
+  // dive: a long, accelerating push-in that ends a couple of hundred km above Kazakhstan
+  const dv = sstep(T.spinEnd - 0.2, T.diveEnd, t);
   const de = easeInOut(dv);
-  cam.position.lerpVectors(CAM_A, CAM_C, de);
-  const look = tmpV.set(0, 0, 0).lerp(LOOK_C, easeInOut(sstep(T.spinEnd - 0.1, T.diveEnd, t)));
-  cam.fov = 40 + Math.sin(dv * Math.PI) * 20 + 6 * de;
-  if (t > T.diveEnd) {
-    const drift = t - T.diveEnd;
-    cam.position.multiplyScalar(1 - Math.min(drift, 5) * 0.006);
-  }
+  divePos(de, camPos0);
+  if (t > T.diveEnd) camPos0.multiplyScalar(1 - Math.min(t - T.diveEnd, 3) * 0.004);
+  camLook0.set(0, 0, 0).lerp(LOOK_C, easeInOut(sstep(T.spinEnd + 0.4, T.diveEnd - 0.1, t)));
+  camUp0.copy(Y_AXIS).lerp(UP_C, de).normalize();
+  let fov = 40 + Math.sin(dv * Math.PI) * 24 + 12 * de;
   // shake while crossing the cloud layer
-  const thr = sstep(2.7, 3.3, t) * (1 - sstep(3.6, 4.2, t));
-  cam.position.x += Math.sin(t * 61) * 0.004 * thr;
-  cam.position.y += Math.sin(t * 47 + 1) * 0.004 * thr;
+  const thr = sstep(3.2, 3.6, t) * (1 - sstep(3.9, 4.3, t));
+  camPos0.x += Math.sin(t * 61) * 0.003 * thr;
+  camPos0.y += Math.sin(t * 47 + 1) * 0.003 * thr;
 
-  // follow the departing plane a little
-  const u = clamp((t - T.planeStart) / (T.planeEnd - T.planeStart), 0, 1);
-  if (t > T.planeStart) {
-    const pp = PATH.getPoint(easeInOut(u) * 0.97, tmpV2);
-    space.earth.localToWorld(pp);
-    look.lerp(pp, 0.32 * sstep(0, 1, u));
-    cam.position.lerp(pp, 0.12 * sstep(0.2, 1, u));
+  // airliner pose (Earth-local; the globe has stopped turning by take-off)
+  const pose = planeSpacePose(t);
+  const flying = t > T.planeStart;
+
+  // follow the take-off, then swing in beside the airliner
+  if (flying) camLook0.lerp(pose.pos, 0.25 * sstep(T.planeStart, T.chase, t));
+  const b = easeInOut(sstep(T.chase, T.chaseEnd, t));
+  if (b > 0) {
+    chasePos.copy(CHASE.off).multiplyScalar(pose.s).applyQuaternion(pose.q).add(pose.pos);
+    chaseLook.copy(CHASE.look).multiplyScalar(pose.s).applyQuaternion(pose.q).add(pose.pos);
+    camPos0.lerp(chasePos, b);
+    camLook0.lerp(chaseLook, b);
+    camUp0.lerp(pose.up, b).normalize();
+    fov = lerp(fov, CHASE.fov, b);
   }
-  cam.lookAt(look);
+  cam.position.copy(camPos0);
+  cam.up.copy(camUp0);
+  cam.lookAt(camLook0);
+  cam.fov = fov;
   cam.updateProjectionMatrix();
 
   // shaders
@@ -1246,12 +1268,11 @@ function updateSpace(t, dt) {
   space.earthMat.uniforms.uCloudShift.value = t * 0.0025;
   space.cloudMat.uniforms.uSun.value.copy(sunL);
   space.cloudMat.uniforms.uCloudShift.value = t * 0.0025;
-  space.cloudMat.uniforms.uOpacity.value = 1;
   space.stars.material.uniforms.uTime.value = t;
   space.atmoMat.uniforms.uCamW.value.copy(cam.position);
 
-  // dive clouds
-  space.diveMat.uniforms.uOpacity.value = sstep(2.3, 2.85, t) * (1 - sstep(3.9, 4.3, t));
+  // the cloud layer of the dive
+  space.diveMat.uniforms.uOpacity.value = sstep(2.7, 3.15, t) * (1 - sstep(4.1, 4.45, t));
   space.diveMat.uniforms.uLight.value.copy(SUN_WORLD).transformDirection(cam.matrixWorldInverse);
 
   // Kazakhstan
@@ -1261,24 +1282,22 @@ function updateSpace(t, dt) {
   space.kzMat.uniforms.uTime.value = t;
   space.kzMat.uniforms.uSun.value.copy(sunL);
   space.curtainMat.uniforms.uBase.value = 1.0015 + KZ_H * rise;
-  space.curtainMat.uniforms.uHc.value = 0.01 + 0.022 * sstep(T.kzRise, T.kzRiseEnd + 0.4, t);
-  space.curtainMat.uniforms.uAmt.value = sstep(T.kzRise, T.kzRiseEnd, t) * (0.28 + 0.1 * Math.sin(t * 3.2));
-  bloom.strength = 0.42 + 0.3 * sstep(T.kzRise, T.kzRiseEnd, t) * (1 - sstep(T.planeStart + 1.5, T.planeEnd, t));
+  space.curtainMat.uniforms.uHc.value = 0.008 + 0.016 * sstep(T.kzRise, T.kzRiseEnd + 0.4, t);
+  space.curtainMat.uniforms.uAmt.value = sstep(T.kzRise, T.kzRiseEnd, t) * (0.26 + 0.1 * Math.sin(t * 3.2)) * (1 - 0.6 * b);
+  bloom.strength = 0.3 + 0.14 * sstep(T.kzRise, T.kzRiseEnd, t) * (1 - b);
 
   // dot and rings
   const ds = backOut(clamp((t - T.dot) / 0.45, 0, 1), 2.2);
-  space.dot.scale.setScalar(Math.max(1e-4, ds));
+  space.dot.scale.setScalar(Math.max(1e-4, ds * 0.7));
   space.rings.forEach((m, i) => {
     const ph = ((t - T.dot) * 0.8 + i * 0.5) % 1;
-    const s = 0.012 + ph * 0.05;
-    m.scale.setScalar(s);
-    m.material.opacity = (1 - ph) * 0.85 * sstep(T.dot, T.dot + 0.3, t);
+    m.scale.setScalar(0.008 + ph * 0.035);
+    m.material.opacity = (1 - ph) * 0.85 * sstep(T.dot, T.dot + 0.3, t) * (1 - b);
   });
 
   // departure tag
   if (ui.tag) {
-    const show = t > T.tagIn && t < T.tagOut;
-    ui.tag.classList.toggle('on', show);
+    ui.tag.classList.toggle('on', t > T.tagIn && t < T.tagOut);
     const p = tmpV2.copy(space.dot.position);
     space.earth.localToWorld(p);
     p.project(cam);
@@ -1286,56 +1305,75 @@ function updateSpace(t, dt) {
     ui.tag.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
   }
 
-  // plane
+  // the airliner
   const rig = S.planeSpace;
   if (rig) {
-    rig.root.visible = t > T.planeStart;
-    if (rig.root.visible) {
-      const e = easeInOut(u) * 0.97 + u * 0.03;
-      const pos = PATH.getPoint(e, tmpV);
-      const fwd = PATH.getTangent(Math.min(e + 0.002, 1), tmpV2).normalize();
-      const upv = pos.clone().normalize();
-      const right = fwd.clone().cross(upv).normalize();
-      const up = right.clone().cross(fwd).normalize();
-      // bank into the turn
-      const f2 = PATH.getTangent(Math.min(e + 0.03, 1)).normalize();
-      const turn = fwd.clone().cross(f2).dot(up);
-      const bank = clamp(-turn * 9, -0.5, 0.5);
-      tmpM.makeBasis(fwd, up, right);
-      rig.root.quaternion.setFromRotationMatrix(tmpM);
-      rig.root.quaternion.multiply(tmpQ.setFromAxisAngle(X_AXIS, bank + Math.sin(t * 9) * 0.01));
-      const grow = sstep(0, 0.12, u);
-      const sc = lerp(0.0032, 0.021, Math.pow(u, 1.6)) * grow;
-      rig.root.scale.setScalar(Math.max(sc, 1e-5));
-      rig.root.position.copy(pos);
+    rig.root.visible = flying;
+    if (flying) {
+      const tp = t - T.planeStart;
+      rig.root.position.copy(pose.pos);
+      rig.root.quaternion.copy(pose.q).multiply(tmpQ.setFromAxisAngle(X_AXIS, Math.sin(tp * 1.3) * 0.12 * Math.exp(-tp / 2) * (1 - b)));
+      const grow = sstep(0, 0.35, tp);
+      rig.root.scale.setScalar(Math.max(pose.s * grow, 1e-5));
       animatePlaneParts(rig, t, dt);
-      // contrail from both engines
-      if (grow > 0.5) {
-        rig.prev = rig.prev || {};
-        for (const zz of [-1.55, 1.55]) {
-          const ep = new THREE.Vector3(-1.1, -0.6, zz).applyQuaternion(rig.root.quaternion).multiplyScalar(sc).add(pos);
-          const pv = rig.prev[zz] || ep;
-          const n = Math.max(1, Math.round(dt * 90));
-          for (let i = 1; i <= n; i++) space.trailP.push({ p: pv.clone().lerp(ep, i / n), b: t - dt * (1 - i / n), s: sc });
-          rig.prev[zz] = ep;
-        }
+      // light the airliner the way the sky scene will, as the camera closes in
+      space.planeSun.position.copy(SUN_WORLD).multiplyScalar(10);
+      if (b > 0) {
+        tmpV.set(-30, 40, 32).normalize().applyQuaternion(pose.q);
+        space.planeSun.position.lerp(tmpV.multiplyScalar(10), b);
+      }
+      space.planeSun.position.add(pose.pos);
+      space.planeSun.target.position.copy(pose.pos);
+      space.hemi.position.copy(pose.up);
+      space.hemi.color.lerpColors(space.hemiA[0], space.hemiB[0], b);
+      space.hemi.groundColor.lerpColors(space.hemiA[1], space.hemiB[1], b);
+      space.hemi.intensity = lerp(0.6, 1.1, b);
+      space.scene.environmentIntensity = lerp(0.35, 1.0, b);
+      if (grow > 0.5 && dt > 0) {
+        rig.root.updateMatrixWorld(true);
+        emitTrail(rig, space.trailP, t, dt, pose.s * grow);
       }
     }
   }
-  space.trail.begin();
-  space.trailP = space.trailP.filter((q) => t - q.b < 1.6);
-  for (const q of space.trailP) {
-    const a = (t - q.b) / 1.6;
-    space.trail.push(q.p.x, q.p.y, q.p.z, q.s * (1.1 + a * 3.2), q.b * 13, (q.b * 97 | 0) % 4, 1.0, 0.2, 0.6 * Math.pow(1 - a, 1.6), 1.4);
-  }
-  space.trail.end();
+  drawTrail(space.trail, space.trailP, t, 1);
   space.trail.mat.uniforms.uLight.value.copy(SUN_WORLD).transformDirection(cam.matrixWorldInverse);
+}
+
+/* -------------------------------- contrails, shared by both scenes */
+// engine exhausts and wingtips, in airliner space
+const EMITTERS = [[-1.25, -0.62, 1.55, 0], [-1.25, -0.62, -1.55, 0], [-1.5, 0.72, 4.85, 1], [-1.5, 0.72, -4.85, 1]];
+function emitTrail(rig, list, now, dt, s) {
+  // interpolate between frames so the trail stays continuous at any frame rate
+  const steps = Math.max(1, Math.round(dt * 120));
+  rig.prev = rig.prev || {};
+  EMITTERS.forEach(([lx, ly, lz, kind], j) => {
+    const w = new THREE.Vector3(lx, ly, lz).applyMatrix4(rig.root.matrixWorld);
+    const pv = rig.prev[j] || w;
+    for (let i = 1; i <= steps; i++) {
+      const f = i / steps;
+      list.push({ x: lerp(pv.x, w.x, f), y: lerp(pv.y, w.y, f), z: lerp(pv.z, w.z, f), b: now - dt * (1 - f), kind, s, r: Math.random() });
+    }
+    rig.prev[j] = w;
+  });
+  if (list.length > 1050) list.splice(0, list.length - 1050);
+}
+function drawTrail(batch, list, now, fade) {
+  for (let i = list.length - 1; i >= 0; i--) if (now - list[i].b > (list[i].kind ? 0.55 : 2.2)) list.splice(i, 1);
+  batch.begin();
+  for (const q of list) {
+    const life = q.kind ? 0.55 : 2.2;
+    const a = clamp((now - q.b) / life, 0, 1);
+    if (q.kind) {
+      batch.push(q.x, q.y, q.z, q.s * (0.16 + a * 0.3), 0, (q.r * 4) | 0, 1.05, 0.2, 0.32 * (1 - a), 3.2);
+    } else {
+      batch.push(q.x, q.y, q.z, q.s * (0.32 + a * 2.2), q.r * 6.28, (q.r * 4) | 0, 1.0, 0.25, 0.55 * Math.pow(1 - a, 1.4) * Math.min(1, (now - q.b) * 12) * fade, 1.6 - a * 0.5);
+    }
+  }
+  batch.end();
 }
 
 /* -------------------------------- sky choreography */
 const PO = {};
-// engine exhausts and wingtips, in airliner space
-const EMITTERS = [[-1.25, -0.62, 1.55, 0], [-1.25, -0.62, -1.55, 0], [-1.5, 0.72, 4.85, 1], [-1.5, 0.72, -4.85, 1]];
 function setupSkyFlight() {
   S.layout = skyLayout();
   S.flight = flightModel(S.layout);
@@ -1349,14 +1387,27 @@ function setupSkyFlight() {
   }
 }
 
+const skyChasePos = new THREE.Vector3(), skyChaseLook = new THREE.Vector3(), skyLook = new THREE.Vector3();
 function updateSky(tau, dt) {
   const L = S.layout, F = S.flight, cam = sky.cam;
-  const cx = F.camX(Math.max(tau, 0));
-  const shake = (1 - sstep(SKY_CRUISE, SKY_CRUISE + 0.8, tau)) * L.k;
+  const cx = F.camX(tau);
+  const shake = (1 - sstep(SKY_CRUISE, SKY_CRUISE + 0.8, tau)) * L.k * sstep(1.2, 2.2, tau);
   cam.position.set(cx + Math.sin(tau * 23) * 0.015 * shake, Math.sin(tau * 17 + 2) * 0.02 * shake - S.scrollY * L.worldPerPx, sky.D);
   // stop sinking once the title is out of view: the cards then sit over the cloud tops
   cam.position.y = Math.max(cam.position.y, -L.viewH * 0.85);
-  cam.lookAt(cam.position.x, cam.position.y, 0);
+  skyLook.set(cam.position.x, cam.position.y, 0);
+  // the intro hands over in the chase pose, then the camera swings out to the side view
+  const kb = S.planeSky ? 1 - easeInOut(sstep(0.45, 2.1, tau)) : 0;
+  if (kb > 0) {
+    const o = F.plane(tau, PO);
+    skyChasePos.copy(CHASE.off).multiplyScalar(o.s).add(tmpV.set(o.x, o.y, o.z));
+    skyChaseLook.copy(CHASE.look).multiplyScalar(o.s).add(tmpV);
+    cam.position.lerp(skyChasePos, kb);
+    skyLook.lerp(skyChaseLook, kb);
+  }
+  cam.fov = lerp(30, CHASE.fov, kb);
+  cam.updateProjectionMatrix();
+  cam.lookAt(skyLook);
   sky.dome.position.copy(cam.position);
 
   // clouds
@@ -1370,7 +1421,7 @@ function updateSky(tau, dt) {
   // airliner
   const rig = S.planeSky;
   if (rig) {
-    const o = F.plane(Math.max(tau, 0), PO);
+    const o = F.plane(tau, PO);
     rig.root.visible = o.x - cam.position.x < L.viewW * 0.5 + 14 * o.s && tau < 9;
     rig.root.position.set(o.x, o.y, o.z);
     rig.root.rotation.set(o.roll, o.yaw, o.pitch, 'XYZ');
@@ -1387,37 +1438,13 @@ function updateSky(tau, dt) {
     // contrails and wingtip vortices
     if (rig.root.visible && dt > 0) {
       rig.root.updateMatrixWorld(true);
-      const steps = Math.max(1, Math.round(dt * 120));
-      rig.prev = rig.prev || {};
-      EMITTERS.forEach(([lx, ly, lz, kind], j) => {
-        const w = new THREE.Vector3(lx, ly, lz).applyMatrix4(rig.root.matrixWorld);
-        const pv = rig.prev[j] || w;
-        for (let i = 1; i <= steps; i++) {
-          const f = i / steps;
-          sky.trailP.push({ x: lerp(pv.x, w.x, f), y: lerp(pv.y, w.y, f), z: lerp(pv.z, w.z, f), b: tau - dt * (1 - f), kind, s: o.s, r: Math.random() });
-        }
-        rig.prev[j] = w;
-      });
+      emitTrail(rig, sky.trailP, tau, dt, o.s);
     }
   }
-  const trailFade = 1 - 0.65 * sstep(SKY_CRUISE - 0.3, SKY_CRUISE + 0.4, tau);
-  sky.trail.begin();
-  sky.trailP = sky.trailP.filter((q) => tau - q.b < (q.kind ? 0.55 : 2.2));
-  if (sky.trailP.length > 1050) sky.trailP.splice(0, sky.trailP.length - 1050);
-  for (const q of sky.trailP) {
-    const life = q.kind ? 0.55 : 2.2;
-    const a = (tau - q.b) / life;
-    if (q.kind) {
-      sky.trail.push(q.x, q.y + a * 0.1 * q.s, q.z, q.s * (0.16 + a * 0.3), 0, (q.r * 4) | 0, 1.05, 0.2, 0.32 * (1 - a), 3.2);
-    } else {
-      const s = q.s * (0.32 + a * 2.2);
-      sky.trail.push(q.x - a * 0.4 * q.s, q.y - a * 0.35 * q.s, q.z, s, q.r * 6.28, (q.r * 4) | 0, 1.0, 0.25, 0.55 * Math.pow(1 - a, 1.4) * Math.min(1, (tau - q.b) * 12) * trailFade, 1.6 - a * 0.5);
-    }
-  }
-  sky.trail.end();
+  drawTrail(sky.trail, sky.trailP, tau, 1 - 0.65 * sstep(SKY_CRUISE - 0.3, SKY_CRUISE + 0.4, tau));
 
   // speed streaks during level flight
-  const sOn = sstep(0, 0.5, tau) * (1 - sstep(SKY_CRUISE - 0.2, SKY_CRUISE + 0.5, tau));
+  const sOn = sstep(0.8, 1.6, tau) * (1 - sstep(SKY_CRUISE - 0.2, SKY_CRUISE + 0.5, tau));
   sky.streakMat.uniforms.uOpacity.value = sOn;
   sky.streakMesh.visible = sOn > 0;
   if (sOn > 0) {
@@ -1431,23 +1458,36 @@ function updateSky(tau, dt) {
 }
 
 /* ================================================================== main loop */
+// full-screen quad that lays the finished space frame over the sky while they cross-fade
+const fade = { scene: new THREE.Scene(), cam: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1) };
+fade.mat = new THREE.ShaderMaterial({
+  uniforms: { tMap: { value: null }, uAlpha: { value: 1 } },
+  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+  fragmentShader: 'uniform sampler2D tMap; uniform float uAlpha; varying vec2 vUv; void main(){ gl_FragColor = vec4(texture2D(tMap, vUv).rgb, uAlpha); }',
+  transparent: true, depthTest: false, depthWrite: false, toneMapped: false,
+});
+fade.scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), fade.mat));
+
+function blending() { return S.t < T.blendEnd && composer && !space.disposed; }
+
 function render() {
   const t = S.t;
   if (S.phase === 'space') {
+    composer.renderToScreen = true;
     composer.render();
-    if (t > T.wipeStart) {
-      updateWipe(t);
-      renderer.autoClear = false;
-      renderer.render(wipe.scene, wipe.cam);
-      renderer.autoClear = true;
-    }
   } else if (S.phase === 'sky' || S.phase === 'done') {
-    renderer.render(sky.scene, sky.cam);
-    if (t < T.wipeEnd) {
-      updateWipe(t);
+    if (blending()) {
+      composer.renderToScreen = false;
+      composer.render();
+      renderer.setRenderTarget(null);
+      renderer.render(sky.scene, sky.cam);
+      fade.mat.uniforms.tMap.value = composer.readBuffer.texture;
+      fade.mat.uniforms.uAlpha.value = 1 - easeInOut(sstep(T.swap, T.blendEnd, t));
       renderer.autoClear = false;
-      renderer.render(wipe.scene, wipe.cam);
+      renderer.render(fade.scene, fade.cam);
       renderer.autoClear = true;
+    } else {
+      renderer.render(sky.scene, sky.cam);
     }
   }
 }
@@ -1457,11 +1497,14 @@ function step(dt) {
   if (S.phase === 'space') {
     updateSpace(t, dt);
     if (t >= T.swap) toSky();
+  } else if (blending()) {
+    updateSpace(t, dt);
   }
   if (S.phase === 'sky' || S.phase === 'done') {
     const tau = t - T.swap;
     updateSky(tau, dt);
     if (S.phase === 'sky') {
+      if (t > T.blendEnd + 0.3 && !space.disposed) disposeSpace();
       const revealAt = Math.max(SKY_CRUISE + 1.1, S.title.lastRelease + 0.55);
       if (tau > revealAt && !root.classList.contains('intro-done')) finishPage();
       if (tau > revealAt + MORPH + 0.4) S.phase = 'done';
@@ -1474,7 +1517,11 @@ function toSky() {
   if (!S.skyBuilt) { buildSky(); S.skyBuilt = true; }
   setupSkyFlight();
   if (ui.tag) ui.tag.classList.remove('on');
-  setTimeout(disposeSpace, 1500);
+  // pre-roll the contrail so it matches the one behind the airliner in the space scene
+  if (S.planeSky) {
+    S.planeSky.prev = null;
+    for (let tau = -1.6; tau < 0; tau += 1 / 60) updateSky(tau, 1 / 60);
+  }
 }
 
 /** Free the globe's textures and meshes once the sky has taken over. */
@@ -1628,16 +1675,18 @@ async function boot() {
   buildKazakhstan(tex.day);
   buildDiveClouds();
   buildSpaceTrail();
-  buildWipe();
   buildSpaceComposer();
   S.planeSpace = makePlane();
   space.earth.add(S.planeSpace.root);
   S.planeSpace.root.visible = false;
   // light the departing airliner like the Earth below it
-  const sunL = new THREE.DirectionalLight(0xfff2e0, 3.0);
-  sunL.position.copy(SUN_WORLD).multiplyScalar(10);
-  space.scene.add(sunL);
-  space.scene.add(new THREE.HemisphereLight(0x9cc0ff, 0x10203a, 0.6));
+  space.planeSun = new THREE.DirectionalLight(0xfff2e0, 3.0);
+  space.planeSun.position.copy(SUN_WORLD).multiplyScalar(10);
+  space.scene.add(space.planeSun, space.planeSun.target);
+  space.hemiA = [new THREE.Color(0x9cc0ff), new THREE.Color(0x10203a)];
+  space.hemiB = [new THREE.Color(0xc4cff4), new THREE.Color(0xeae4f6)];
+  space.hemi = new THREE.HemisphereLight(0x9cc0ff, 0x10203a, 0.6);
+  space.scene.add(space.hemi);
   // build the sky, flight and title now so the swap does not stall a frame
   if (!S.skyBuilt) { buildSky(); S.skyBuilt = true; }
   setupSkyFlight();
@@ -1650,8 +1699,8 @@ async function boot() {
   start();
 }
 
-/* debug hook for screenshots: __kaztourIntro.seek(seconds) */
-window.__kaztourIntro = {
+/* debug hook for screenshots: __samrukIntro.seek(seconds) */
+window.__samrukIntro = {
   seek(t) {
     cancelAnimationFrame(rafId);
     running = false;

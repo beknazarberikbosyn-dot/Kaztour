@@ -1,5 +1,5 @@
 """
-KazTour intro airliner, modelled procedurally in Blender.
+Samruk Travel intro airliner, modelled procedurally in Blender.
 
 Run headless with Blender or with the `bpy` Python module:
 
@@ -416,7 +416,7 @@ def build_doors():
 
 
 def build_titles():
-    """'KazTour' lettering on both sides, bent onto the fuselage."""
+    """'Samruk Travel' lettering on both sides, bent onto the fuselage."""
     font = None
     for path in ("/usr/share/fonts/opentype/inter/InterDisplay-Bold.otf",
                  "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"):
@@ -426,10 +426,10 @@ def build_titles():
     objs = []
     for side in (1, -1):
         cu = bpy.data.curves.new("TitleCurve", "FONT")
-        cu.body = "KazTour"
+        cu.body = "Samruk Travel"
         if font:
             cu.font = font
-        cu.size = 0.36
+        cu.size = 0.3
         cu.align_x = "CENTER"
         cu.resolution_u = 6
         tob = bpy.data.objects.new("TitleTmp", cu)
@@ -438,7 +438,7 @@ def build_titles():
         me = bpy.data.meshes.new_from_object(tob.evaluated_get(dg))
         bpy.data.objects.remove(tob)
         # text lies in its local XY plane; map X -> fuselage x, Y -> height
-        cx, zn0 = 1.3, 0.4
+        cx, zn0 = 0.95, 0.42
         for v in me.vertices:
             u, w = v.co.x, v.co.y
             # starboard (side -1) reads nose-ward, port reads tail-ward: both left-to-right
