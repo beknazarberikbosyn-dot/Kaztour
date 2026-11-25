@@ -953,7 +953,7 @@ html.intro-done .fab{animation:skyFade .8s .5s ease both}
   </div>
 </section>
 
-<footer><div class="wrap">Contacts on this page are not real; they show how the contact block would look. Samruk Travel · Astana, Kazakhstan · Concept prototype. Not a real company.<p class="credits" style="margin-top:8px">Photos from Wikimedia Commons, used under their free licences; authors and licences are on each file page: <a href="https://commons.wikimedia.org/wiki/File:Big_Almaty_Lake_(2511_m)_and_snowy_peak_of_Soviets_(4317_m)_in_September,_2,_2017.jpg" target="_blank" rel="noopener">Big Almaty Lake</a> · <a href="https://commons.wikimedia.org/wiki/File:Charyn_Canyon,_Kazakhstan_02.jpg" target="_blank" rel="noopener">Charyn Canyon</a> · <a href="https://commons.wikimedia.org/wiki/File:Kolsai_lake.jpg" target="_blank" rel="noopener">Kolsai Lake</a> · <a href="https://commons.wikimedia.org/wiki/File:Mausoleum_of_Khoja_Ahmed_Yasavi_in_Turkestan,_Kazakhstan.jpg" target="_blank" rel="noopener">Mausoleum of Khoja Ahmed Yasawi</a> · <a href="https://commons.wikimedia.org/wiki/File:%D0%91%D0%BE%D1%80%D0%BE%D0%B2%D0%BE%D0%B5-201007.jpg" target="_blank" rel="noopener">Lake Burabay</a>. Gallery photos link to their own file pages.</p><p class="credits" style="margin-top:8px">Intro animation: Earth textures (NASA Blue Marble and Black Marble imagery) from the <a href="https://github.com/vasturiano/three-globe" target="_blank" rel="noopener">three-globe</a> examples, cloud map from <a href="https://github.com/turban/webgl-earth" target="_blank" rel="noopener">webgl-earth</a>, Kazakhstan border from <a href="https://www.naturalearthdata.com/" target="_blank" rel="noopener">Natural Earth</a>. The airliner was modelled in Blender for this site.</p></div></footer>
+<footer><div class="wrap">Contacts on this page are not real; they show how the contact block would look. Samruk Travel · Astana, Kazakhstan · Concept prototype. Not a real company.<p class="credits" style="margin-top:8px">Photos from Wikimedia Commons, used under their free licences; authors and licences are on each file page: <a href="https://commons.wikimedia.org/wiki/File:Big_Almaty_Lake_(2511_m)_and_snowy_peak_of_Soviets_(4317_m)_in_September,_2,_2017.jpg" target="_blank" rel="noopener">Big Almaty Lake</a> · <a href="https://commons.wikimedia.org/wiki/File:Charyn_Canyon,_Kazakhstan_02.jpg" target="_blank" rel="noopener">Charyn Canyon</a> · <a href="https://commons.wikimedia.org/wiki/File:Kolsai_lake.jpg" target="_blank" rel="noopener">Kolsai Lake</a> · <a href="https://commons.wikimedia.org/wiki/File:Mausoleum_of_Khoja_Ahmed_Yasavi_in_Turkestan,_Kazakhstan.jpg" target="_blank" rel="noopener">Mausoleum of Khoja Ahmed Yasawi</a> · <a href="https://commons.wikimedia.org/wiki/File:%D0%91%D0%BE%D1%80%D0%BE%D0%B2%D0%BE%D0%B5-201007.jpg" target="_blank" rel="noopener">Lake Burabay</a>. Gallery photos link to their own file pages.</p><p class="credits" style="margin-top:8px">Intro animation: Earth textures (NASA Blue Marble and Black Marble imagery) from the <a href="https://github.com/vasturiano/three-globe" target="_blank" rel="noopener">three-globe</a> examples, cloud map from <a href="https://github.com/turban/webgl-earth" target="_blank" rel="noopener">webgl-earth</a>, Kazakhstan border from <a href="https://www.naturalearthdata.com/" target="_blank" rel="noopener">Natural Earth</a>. The airliner was modelled in Blender for this site. Virtual tour narration: voice generated with <a href="https://elevenlabs.io" target="_blank" rel="noopener">ElevenLabs</a>.</p></div></footer>
 
 <!-- AI assistant -->
 <button class="fab" id="fab" aria-expanded="false" aria-controls="chat" aria-label="Ask Aru the camel, our AI travel guide"><span class="hint" data-i18n="fab">Hi, I'm Aru! Ask me anything</span><span class="ava-wrap" data-camel></span></button>
@@ -1567,7 +1567,18 @@ function vtSpeak(text,done){
     const g=vt.gen;let fin=false;const end=()=>{if(fin||g!==vt.gen)return;fin=true;done();};u.onend=end;u.onerror=end;
     vtLater(end,Math.max(6000,text.length*95));speechSynthesis.speak(u);}catch(e){done();}
 }
-function vtStopSpeech(){try{if('speechSynthesis' in window)speechSynthesis.cancel();}catch(e){}}
+function vtStopSpeech(){try{if('speechSynthesis' in window)speechSynthesis.cancel();}catch(e){}if(vt.audio){vt.audio.onended=vt.audio.onerror=null;vt.audio.pause();vt.audio=null;}}
+/* recorded narration (ElevenLabs, voice "Lily") for every stop in EN, 中文 and DE; the browser voice is only a fallback */
+const VT_CLIPS=Object.keys(STOPD);
+function vtNarrate(stopName,text,done){
+  const n=VT_CLIPS.indexOf(stopName);
+  if(!vt.voice){done();return;}
+  if(n<0){vtSpeak(text,done);return;}
+  const g=vt.gen,a=new Audio(`assets/vt/${vtLangCode()}/${String(n).padStart(2,'0')}.mp3`);let fin=false;
+  const end=()=>{if(fin||g!==vt.gen)return;fin=true;done();};
+  a.onended=end;a.onerror=()=>{if(fin||g!==vt.gen)return;fin=true;vt.audio=null;vtSpeak(text,done);};
+  vt.audio=a;a.play().catch(()=>{if(!fin&&g===vt.gen){fin=true;vt.audio=null;vtSpeak(text,done);}});
+}
 const vtPlaneIcon=()=>L.divIcon({className:'vt-plane',html:'<span><svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><path fill="currentColor" d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg></span>',iconSize:[34,34],iconAnchor:[17,17]});
 function vtBearing(a,b){const toR=Math.PI/180,y=Math.sin((b.lng-a.lng)*toR)*Math.cos(b.lat*toR),x=Math.cos(a.lat*toR)*Math.sin(b.lat*toR)-Math.sin(a.lat*toR)*Math.cos(b.lat*toR)*Math.cos((b.lng-a.lng)*toR);return Math.atan2(y,x)/toR;}
 function vtSetPlane(lat,lng,deg){vt.plane.setLatLng([lat,lng]);const el=vt.plane.getElement();if(el)el.firstChild.style.transform=`rotate(${deg}deg)`;}
@@ -1621,7 +1632,7 @@ function vtArrive(i){
   $('#vtCard').classList.add('on');
   $('#vtBar').style.width=((i+1)/pts.length*100)+'%';
   vtLater(()=>{vt.ready.min=true;vtMaybeNext();},vtReduce()?7000:9000);
-  vtLater(()=>vtSpeak(`${name}. ${desc}`,()=>{vt.ready.speech=true;vtMaybeNext();}),900);
+  vtLater(()=>vtNarrate(p.n,`${name}. ${desc}`,()=>{vt.ready.speech=true;vtMaybeNext();}),900);
 }
 function vtMaybeNext(){if(vt.paused||!vt.ready.min||!vt.ready.speech)return;const n=POINTS[vt.tour.id].length;if(vt.i<n-1)vtGo(vt.i+1);else vtEnd();}
 function vtEnd(){
@@ -1632,7 +1643,7 @@ function vtEnd(){
   vt.trail.setLatLngs(ll(t.id));
 }
 function vtPlayIcon(){$('#vtPlay').innerHTML=vt.paused?'<span class="vt-ico-play" aria-hidden="true"></span>':'<span class="vt-ico-pause" aria-hidden="true"></span>';$('#vtPlay').setAttribute('aria-label',vt.paused?'Play':'Pause');}
-function vtToggle(){vt.paused=!vt.paused;vtPlayIcon();try{if(vt.paused)speechSynthesis.pause();else speechSynthesis.resume();}catch(e){}if(!vt.paused)vtMaybeNext();}
+function vtToggle(){vt.paused=!vt.paused;vtPlayIcon();try{if(vt.audio){if(vt.paused)vt.audio.pause();else vt.audio.play();}else if(vt.paused)speechSynthesis.pause();else speechSynthesis.resume();}catch(e){}if(!vt.paused)vtMaybeNext();}
 function vtClose(){vtClear();vtStopSpeech();vt.gen++;$('#vt').hidden=true;$('#vtPano').innerHTML='';document.documentElement.classList.remove('vt-open');}
 $('#vtClose').onclick=vtClose;
 $('#vtPlay').onclick=vtToggle;
