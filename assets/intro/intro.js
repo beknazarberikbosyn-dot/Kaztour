@@ -347,7 +347,7 @@ const loadTex = (f, srgb) => texLoader.loadAsync(asset(f)).then((t) => {
 });
 const fontReady = (async () => {
   try {
-    await Promise.race([document.fonts.load('700 200px "Fredoka"'), new Promise((r) => setTimeout(r, 2500))]);
+    await Promise.race([document.fonts.load('600 200px "Fredoka"'), new Promise((r) => setTimeout(r, 2500))]);
   } catch (e) { /* fall back to the next font in the stack */ }
 })();
 
@@ -356,11 +356,11 @@ function palette(dark) {
   return dark ? {
     top: '#26336a', mid: '#333a7a', low: '#4d4489', haze: '#6f659f', sun: '#9fa8ff',
     lit: '#dcd8f5', shade: '#4f4687', rim: '#6d5fb0', fog: '#433f7a',
-    tLit: '#f4f1ff', tShade: '#7f6dc8', tRim: '#a58ae6',
+    tLit: '#f4f1ff', tShade: '#7f6dc8', tRim: '#a58ae6', tDrop: '#120d33',
   } : {
     top: '#a9bdec', mid: '#8f9bd8', low: '#aaa4da', haze: '#dcd7f1', sun: '#fff1df',
     lit: '#ffffff', shade: '#a898d9', rim: '#c9b9ee', fog: '#c3c3e8',
-    tLit: '#ffffff', tShade: '#9b86dd', tRim: '#c6aef0',
+    tLit: '#ffffff', tShade: '#9b86dd', tRim: '#c6aef0', tDrop: '#3b2d82',
   };
 }
 
@@ -932,9 +932,9 @@ function flightModel(L) {
 /* -------------------------------- cloud title */
 function rasterTitle(lines) {
   const c = document.createElement('canvas');
-  const fs = 300, pad = 120, gap = 80, lineH = fs * 1.12;
+  const fs = 300, pad = 120, gap = 46, lineH = fs * 1.12;
   const x = c.getContext('2d', { willReadFrequently: true });
-  const font = `700 ${fs}px "Fredoka", "Baloo 2", "Nunito", "Arial Rounded MT Bold", "Segoe UI", system-ui, sans-serif`;
+  const font = `600 ${fs}px "Fredoka", "Baloo 2", "Nunito", "Arial Rounded MT Bold", "Segoe UI", system-ui, sans-serif`;
   x.font = font;
   const rows = lines.map((text) => {
     const widths = [...text].map((ch) => x.measureText(ch).width);
@@ -946,9 +946,9 @@ function rasterTitle(lines) {
   x.textBaseline = 'middle';
   x.fillStyle = '#fff';
   // a round stroke on top of the fill makes the strokes chunkier, like inflated cloud letters
-  x.strokeStyle = '#fff';
+  x.strokeStyle = 'rgba(0,0,0,0)';
   x.lineJoin = 'round';
-  x.lineWidth = fs * 0.04;
+  x.lineWidth = 0;   // no extra thickening: thinner strokes read better as clouds
   rows.forEach((row, li) => {
     let cx = (c.width - row.w) / 2;
     const cy = pad + lineH * (li + 0.5) + fs * 0.04;
@@ -1024,7 +1024,7 @@ function buildTitle(L, F) {
       if (dd <= 0 || dd > 2.2) continue;
       const [gx, gy] = grad(px, py);
       const gl = Math.hypot(gx, gy) || 1;
-      const push = R.dmax * (0.02 + r() * 0.08);
+      const push = R.dmax * (r() * 0.04);
       P.push({ px: px - (gx / gl) * push, py: py - (gy / gl) * push, dn: 0, kind: 1, up: gy / gl });
     }
   }
@@ -1036,8 +1036,8 @@ function buildTitle(L, F) {
     if (up === undefined) { const [gx, gy] = grad(p.px, p.py); const gl = Math.hypot(gx, gy) || 1; up = gy / gl; }
     const dn = p.dn;
     const size = p.kind
-      ? dmaxW * lerp(0.42, 0.72, r())
-      : clamp(2.35 * p.dl / R.dmax, 0.6, 1.6) * dmaxW * lerp(0.88, 1.15, r());
+      ? dmaxW * lerp(0.3, 0.52, r())
+      : clamp(2.2 * p.dl / R.dmax, 0.5, 1.45) * dmaxW * lerp(0.88, 1.12, r());
     const z = p.kind ? (r() - 0.5) * dmaxW * 0.6 : dn * dmaxW * lerp(0.4, 1.2, r());
     const bright = clamp(0.93 + 0.32 * up * (1 - dn) + 0.1 * dn + (r() - 0.5) * 0.14, 0.55, 1.3);
     const rim = (1 - dn) * (0.85 - 0.4 * up);
@@ -1084,6 +1084,16 @@ function buildTitle(L, F) {
   const mesh = new THREE.Mesh(g, m);
   mesh.frustumCulled = false;
   mesh.renderOrder = 4;
+  // soft drop shadow: the same puffs in deep violet, offset down-right and behind the letters
+  const sm = puffMaterial({ defines: { TEXT: '' }, lit: p.tDrop, shade: p.tDrop, rim: p.tDrop, opacity: 0.34 });
+  sm.uniforms.uTime = m.uniforms.uTime;
+  const drop = new THREE.Mesh(g, sm);
+  drop.frustumCulled = false;
+  drop.renderOrder = 3.5;
+  drop.position.set(dmaxW * 0.35, -dmaxW * 0.5, -dmaxW * 2);
+  drop.scale.setScalar(1.015);
+  mesh.add(drop);
+  mesh.userData.drop = sm;
   let last = -100;
   for (let i = 0; i < n; i++) if (aT[i * 4 + 3] < 1.5) last = Math.max(last, aT[i * 4] + aT[i * 4 + 1]);
   return { mesh, mat: m, lastRelease: last };
@@ -1616,7 +1626,7 @@ function retheme() {
   const u = sky.domeMat.uniforms;
   u.uTop.value.set(p.top); u.uMid.value.set(p.mid); u.uLow.value.set(p.low); u.uHaze.value.set(p.haze); u.uSunCol.value.set(p.sun);
   for (const m of [sky.seaMat, sky.trailMat]) { m.uniforms.uLit.value.set(p.lit); m.uniforms.uShade.value.set(p.shade); m.uniforms.uRim.value.set(p.rim); m.uniforms.uFog.value.set(p.fog); }
-  if (S.title) { const m = S.title.mat.uniforms; m.uLit.value.set(p.tLit); m.uShade.value.set(p.tShade); m.uRim.value.set(p.tRim); }
+  if (S.title) { const m = S.title.mat.uniforms; m.uLit.value.set(p.tLit); m.uShade.value.set(p.tShade); m.uRim.value.set(p.tRim); const d = S.title.mesh.userData.drop; if (d) for (const k of ['uLit', 'uShade', 'uRim']) d.uniforms[k].value.set(p.tDrop); }
   S.needsRender = true;
   if (reduceMotion) { step(0); render(); }
 }
