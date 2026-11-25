@@ -122,6 +122,10 @@ setTimeout(function(){if(d.classList.contains('intro-pending')){d.classList.remo
 </script>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="assets/parks/parks.css">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0A84A6">
+<link rel="apple-touch-icon" href="assets/parks/icon-192.png">
 <style>
 /* Layout: sticky header → steppe hero with trip planner → tour cards → trust block; tour page and booking flow are separate views with a summary rail; AI assistant floats bottom-right */
 :root{
@@ -682,6 +686,7 @@ html.intro-done .fab{animation:skyFade .8s .5s ease both}
     <nav class="nav" aria-label="Page sections">
       <button data-sec="planner" data-i18n="navPlan">Trip planner</button>
       <button data-sec="tours" data-i18n="navTours">Tours</button>
+      <button data-view="parks" class="nav-parks">Parks</button>
       <button data-sec="map360" data-i18n="navMap">360° map</button>
       <button data-sec="reviews" data-i18n="navReviews">Reviews</button>
       <button data-sec="trust" data-i18n="navTrust">Why trust us</button>
@@ -768,6 +773,24 @@ html.intro-done .fab{animation:skyFade .8s .5s ease both}
     </div>
   </section>
 
+  <section class="block" id="parksinfo" aria-labelledby="pkhTitle">
+    <div class="wrap pk-home">
+      <div class="pk-home-txt">
+        <div class="eyebrow">Parks without stress</div>
+        <h2 id="pkhTitle">Toilets, water and signal: know before you go</h2>
+        <p class="lead">Tourism in our national parks grows faster than their services. Kolsai has no stable mobile signal, and visitors complain about toilets and litter. So every trip now works offline, shows where the facilities are, and lets you tell the park about a problem in one tap.</p>
+        <div class="pk-hfeat">
+          <div><b>Offline trip pack</b><span>Ticket QR, programme, SOS numbers, a park plan with your GPS position and Kazakh phrases. Opens with no signal.</span></div>
+          <div><b>Facilities map</b><span>Toilets, bins, water, first aid and where the signal is, with live status from other visitors.</span></div>
+          <div><b>One-tap reports</b><span>"Bin is full", "No signal here". Saved on your phone and sent when the signal returns.</span></div>
+          <div><b>Park office panel</b><span>Rangers see hotspots, send staff, get a cleaning round and a map of signal gaps for mobile operators.</span></div>
+        </div>
+        <div class="pk-hbtn"><button class="btn btn-gold" data-goview="parks">Open the park map</button><button class="btn btn-line" data-goview="office">Park office panel</button></div>
+        <div id="hpPacks" class="pk-hpacks"></div>
+      </div>
+      <div class="pk-hstats" id="hpStats"></div>
+    </div>
+  </section>
   <section class="block" id="trust">
     <div class="wrap trust">
       <div>
@@ -878,6 +901,8 @@ html.intro-done .fab{animation:skyFade .8s .5s ease both}
         <small id="dKzt" class="num"></small>
         <button class="btn btn-gold" id="dBook">Choose a date</button>
         <button class="btn btn-line" id="dAsk">Ask the assistant</button>
+        <button class="btn btn-line pk-railbtn" id="dOffline">Save for offline</button>
+        <button class="btn btn-line pk-railbtn" id="dPark" hidden>Park facilities map</button>
         <div class="policy" style="margin-top:4px">
           <div><span class="tick">✓</span><span style="font-size:14px">Free cancellation up to 7 days</span></div>
           <div><span class="tick">✓</span><span style="font-size:14px">Instant email confirmation</span></div>
@@ -926,9 +951,65 @@ html.intro-done .fab{animation:skyFade .8s .5s ease both}
           <li><label><input type="checkbox" id="ck3">Save your guide's WhatsApp</label></li>
           <li><label><input type="checkbox" id="ck4">Pack items from the "what to bring" list</label></li>
         </ul>
+        <button class="btn btn-gold" id="cOffline" hidden>Save this trip for offline</button>
         <button class="btn btn-line" data-go="home">Back to all tours</button>
       </div>
     </div>
+  </div>
+</div>
+<!-- PARKS: facilities map with one-tap reports -->
+<div id="view-parks" hidden>
+  <div class="wrap">
+    <button class="back" data-go="home">← Home</button>
+    <div class="pk-top">
+      <div><div class="eyebrow">Park facilities map</div><h1 id="pkName"></h1></div>
+      <div class="pk-topr"><span class="pk-net"></span><button class="chip pk-sim" aria-pressed="false">Test without signal</button></div>
+    </div>
+    <div class="pk-tabs" id="pkTabs" role="tablist" aria-label="Parks"></div>
+    <div class="pk-facts" id="pkFacts"></div>
+    <div class="pk-legend" id="pkLegend" role="group" aria-label="Show on the map"></div>
+    <div class="pk-main">
+      <div class="pk-mapwrap" id="pkMapWrap">
+        <div class="map pk-map" id="pkMap" role="region" aria-label="Map of park facilities"></div>
+        <div class="pk-planbox" id="pkPlan" hidden></div>
+        <p class="pk-offnote" id="pkOffNote" hidden>No signal: this is the offline plan of the park. Icons still work, and your reports wait on your phone.</p>
+      </div>
+      <aside class="pk-side">
+        <div class="pk-panel" id="pkPanel" aria-live="polite"></div>
+        <div class="pk-panel" id="pkOutbox" hidden></div>
+        <div class="pk-sidebtns"><span id="pkPack"></span><span id="pkTour"></span></div>
+      </aside>
+    </div>
+    <p class="src pk-note">Prototype: positions of facilities are approximate. Reports are kept in this browser and appear in the park office panel; a real version sends them to the park's server. The office panel also shows sample reports, so you can see a busy week.</p>
+  </div>
+</div>
+
+<!-- PARK OFFICE: what rangers see -->
+<div id="view-office" hidden>
+  <div class="wrap">
+    <button class="back" data-go="home">← Home</button>
+    <div class="pk-top">
+      <div><div class="eyebrow">Park office panel <span class="demo-tag">Demo</span></div><h1 id="ofName"></h1></div>
+      <div class="pk-topr"><span class="pk-net"></span><button class="btn btn-line sm" data-goview="parks">Visitor map</button></div>
+    </div>
+    <div class="pk-tabs" id="ofTabs" role="group" aria-label="Parks"></div>
+    <div class="pk-kpis" id="ofKpi"></div>
+    <div class="pk-ofgrid">
+      <section class="pk-card pk-wide"><h3>Hotspots</h3><p class="muted pk-small">Circles grow with the number of open reports. Grey dashed circles are places with no signal.</p><div class="map pk-map" id="ofMap" role="region" aria-label="Map of reported problems"></div><div id="ofPlan" hidden></div></section>
+      <section class="pk-card pk-wide"><h3>Open problems, most urgent first</h3><ul class="pk-oflist" id="ofList"></ul></section>
+      <section class="pk-card"><h3>Service round for the cleaner</h3><div id="ofRound"></div></section>
+      <section class="pk-card"><h3>Reports this week</h3><div class="pk-days" id="ofDays"></div><div class="pk-bars" id="ofChart"></div></section>
+      <section class="pk-card"><h3>Signal gaps</h3><p class="muted pk-small">Where visitors had no signal. Share it with mobile operators to plan new masts.</p><div id="ofGaps"></div></section>
+    </div>
+    <p class="src pk-note">Demo panel: sample reports plus the reports sent from this browser. Open the visitor map in another tab and report something: it appears here.</p>
+  </div>
+</div>
+
+<!-- OFFLINE TRIP PACK -->
+<div id="view-pack" hidden>
+  <div class="wrap">
+    <button class="back" data-go="home">← Home</button>
+    <div id="packBox"></div>
   </div>
 </div>
 </main>
@@ -953,7 +1034,7 @@ html.intro-done .fab{animation:skyFade .8s .5s ease both}
   </div>
 </section>
 
-<footer><div class="wrap">Contacts on this page are not real; they show how the contact block would look. Samruk Travel · Astana, Kazakhstan · Concept prototype. Not a real company.<p class="credits" style="margin-top:8px">Photos from Wikimedia Commons, used under their free licences; authors and licences are on each file page: <a href="https://commons.wikimedia.org/wiki/File:Big_Almaty_Lake_(2511_m)_and_snowy_peak_of_Soviets_(4317_m)_in_September,_2,_2017.jpg" target="_blank" rel="noopener">Big Almaty Lake</a> · <a href="https://commons.wikimedia.org/wiki/File:Charyn_Canyon,_Kazakhstan_02.jpg" target="_blank" rel="noopener">Charyn Canyon</a> · <a href="https://commons.wikimedia.org/wiki/File:Kolsai_lake.jpg" target="_blank" rel="noopener">Kolsai Lake</a> · <a href="https://commons.wikimedia.org/wiki/File:Mausoleum_of_Khoja_Ahmed_Yasavi_in_Turkestan,_Kazakhstan.jpg" target="_blank" rel="noopener">Mausoleum of Khoja Ahmed Yasawi</a> · <a href="https://commons.wikimedia.org/wiki/File:%D0%91%D0%BE%D1%80%D0%BE%D0%B2%D0%BE%D0%B5-201007.jpg" target="_blank" rel="noopener">Lake Burabay</a>. Gallery photos link to their own file pages.</p><p class="credits" style="margin-top:8px">Intro animation: Earth textures (NASA Blue Marble and Black Marble imagery) from the <a href="https://github.com/vasturiano/three-globe" target="_blank" rel="noopener">three-globe</a> examples, cloud map from <a href="https://github.com/turban/webgl-earth" target="_blank" rel="noopener">webgl-earth</a>, Kazakhstan border from <a href="https://www.naturalearthdata.com/" target="_blank" rel="noopener">Natural Earth</a>. The airliner was modelled in Blender for this site. Virtual tour narration: voice generated with <a href="https://elevenlabs.io" target="_blank" rel="noopener">ElevenLabs</a>.</p></div></footer>
+<footer><div class="wrap">Contacts on this page are not real; they show how the contact block would look. Samruk Travel · Astana, Kazakhstan · Concept prototype. Not a real company.<p class="credits" style="margin-top:8px">Photos from Wikimedia Commons, used under their free licences; authors and licences are on each file page: <a href="https://commons.wikimedia.org/wiki/File:Big_Almaty_Lake_(2511_m)_and_snowy_peak_of_Soviets_(4317_m)_in_September,_2,_2017.jpg" target="_blank" rel="noopener">Big Almaty Lake</a> · <a href="https://commons.wikimedia.org/wiki/File:Charyn_Canyon,_Kazakhstan_02.jpg" target="_blank" rel="noopener">Charyn Canyon</a> · <a href="https://commons.wikimedia.org/wiki/File:Kolsai_lake.jpg" target="_blank" rel="noopener">Kolsai Lake</a> · <a href="https://commons.wikimedia.org/wiki/File:Mausoleum_of_Khoja_Ahmed_Yasavi_in_Turkestan,_Kazakhstan.jpg" target="_blank" rel="noopener">Mausoleum of Khoja Ahmed Yasawi</a> · <a href="https://commons.wikimedia.org/wiki/File:%D0%91%D0%BE%D1%80%D0%BE%D0%B2%D0%BE%D0%B5-201007.jpg" target="_blank" rel="noopener">Lake Burabay</a>. Gallery photos link to their own file pages.</p><p class="credits" style="margin-top:8px">Intro animation: Earth textures (NASA Blue Marble and Black Marble imagery) from the <a href="https://github.com/vasturiano/three-globe" target="_blank" rel="noopener">three-globe</a> examples, cloud map from <a href="https://github.com/turban/webgl-earth" target="_blank" rel="noopener">webgl-earth</a>, Kazakhstan border from <a href="https://www.naturalearthdata.com/" target="_blank" rel="noopener">Natural Earth</a>. The airliner was modelled in Blender for this site. Virtual tour narration: voice generated with <a href="https://elevenlabs.io" target="_blank" rel="noopener">ElevenLabs</a>. QR codes: <a href="https://github.com/kazuhikoarase/qrcode-generator" target="_blank" rel="noopener">qrcode-generator</a> by Kazuhiko Arase (MIT). Park plans and facilities are approximate prototype data.</p></div></footer>
 
 <!-- AI assistant -->
 <button class="fab" id="fab" aria-expanded="false" aria-controls="chat" aria-label="Ask Aru the camel, our AI travel guide"><span class="hint" data-i18n="fab">Hi, I'm Aru! Ask me anything</span><span class="ava-wrap" data-camel></span></button>
@@ -1305,18 +1386,19 @@ const EN={};document.querySelectorAll('[data-i18n]').forEach(el=>EN[el.dataset.i
 function applyLang(){document.documentElement.lang=st.lang==='zh'?'zh-CN':st.lang;trTree(document.body);}
 
 /* ---------- views ---------- */
-function show(v){['home','search','tour','book','done'].forEach(x=>$('#view-'+x).hidden=x!==v);const ns=document.querySelector('.nav-search');if(ns&&v!=='search')ns.setAttribute('aria-current','false');if(v!=='home'&&typeof markSection==='function')markSection('');window.scrollTo(0,0);if(v==='home'&&homeMap)setTimeout(()=>homeMap.invalidateSize(),60);}
+function show(v){['home','search','tour','book','done','parks','office','pack'].forEach(x=>$('#view-'+x).hidden=x!==v);document.querySelectorAll('.nav [data-view]').forEach(b=>{if(b.dataset.view!==v)b.setAttribute('aria-current','false');});if(v!=='home'&&typeof markSection==='function')markSection('');window.scrollTo(0,0);if(v==='home'&&homeMap)setTimeout(()=>homeMap.invalidateSize(),60);}
 /* ---------- browser history: the back / forward arrows move between pages and booking steps ---------- */
 const SECTIONS=['planner','tours','map360','trust','reviews','contact'];
-function stateUrl(x){if(x.view==='search')return '#search';if(x.view==='tour')return '#tour-'+x.tour;if(x.view==='book')return `#book-${x.tour}-${x.step+1}`;if(x.view==='done')return '#booked';return x.section?'#'+x.section:location.pathname+location.search;}
+function stateUrl(x){if(x.view==='search')return '#search';if(x.view==='parks')return '#parks'+(x.park?'-'+x.park:'');if(x.view==='office')return '#office'+(x.park?'-'+x.park:'');if(x.view==='pack')return '#pack-'+x.tour;if(x.view==='tour')return '#tour-'+x.tour;if(x.view==='book')return `#book-${x.tour}-${x.step+1}`;if(x.view==='done')return '#booked';return x.section?'#'+x.section:location.pathname+location.search;}
 function push(x){x.d=((history.state&&history.state.d)||0)+1;history.pushState(x,'',stateUrl(x));}
 function replace(x){x.d=(history.state&&history.state.d)||0;history.replaceState(x,'',stateUrl(x));}
-function parseHash(){const h=decodeURIComponent(location.hash.slice(1));if(h.startsWith('tour-'))return{view:'tour',tour:h.slice(5)};const m=h.match(/^book-(\w+)-(\d)$/);if(m)return{view:'book',tour:m[1],step:+m[2]-1};if(h==='booked')return{view:'done'};if(h==='search')return{view:'search'};if(SECTIONS.includes(h))return{view:'home',section:h};return{view:'home'};}
+function parseHash(){const h=decodeURIComponent(location.hash.slice(1));if(h.startsWith('tour-'))return{view:'tour',tour:h.slice(5)};const m=h.match(/^book-(\w+)-(\d)$/);if(m)return{view:'book',tour:m[1],step:+m[2]-1};if(h==='booked')return{view:'done'};if(h==='search')return{view:'search'};const pm=h.match(/^(parks|office)(?:-(\w+))?$/);if(pm)return{view:pm[1],park:pm[2]};if(h.startsWith('pack-'))return{view:'pack',tour:h.slice(5)};if(SECTIONS.includes(h))return{view:'home',section:h};return{view:'home'};}
 function goSection(id,smooth){const el=document.getElementById(id);if(el)requestAnimationFrame(()=>el.scrollIntoView({behavior:smooth?'smooth':'auto',block:'start'}));}
 function goHome(){if($('#view-home').hidden){show('home');push({view:'home'});}else{window.scrollTo({top:0,behavior:'smooth'});replace({view:'home'});}}
 function apply(x){
   if(!x||x.view==='home'){show('home');if(x&&x.section)goSection(x.section,false);return;}
   if(x.view==='search'){openSearch(true);return;}
+  if(x.view==='parks'||x.view==='office'||x.view==='pack'){if(window.PK)PK.apply(x);else window.__pkInit=x;return;}
   if(x.view==='tour'){if(TOURS.some(t=>t.id===x.tour))openTour(x.tour,true);else show('home');return;}
   if(x.view==='book'){const t=TOURS.find(y=>y.id===x.tour);if(!t||st.booked){show('home');replace({view:'home'});return;}
     if(st.tour!==t){st.tour=t;st.date=null;}$('#bTitle').textContent='Book: '+t.name;st.step=st.date?Math.min(x.step,3):0;renderBooking();show('book');return;}
@@ -1326,7 +1408,7 @@ window.addEventListener('popstate',e=>apply(e.state||parseHash()));
 document.addEventListener('click',e=>{const g=e.target.closest('[data-go]');if(g&&g.dataset.go==='home')goHome();});
 $('#logo').onclick=goHome;
 /* section switcher in the header: works from any page, highlights the section in view */
-$('.nav').onclick=e=>{if(e.target.closest('[data-view="search"]')){if($('#view-search').hidden)openSearch();return;}const b=e.target.closest('[data-sec]');if(!b)return;const id=b.dataset.sec;
+$('.nav').onclick=e=>{if(e.target.closest('[data-view="search"]')){if($('#view-search').hidden)openSearch();return;}if(e.target.closest('[data-view="parks"]')){if(window.PK&&$('#view-parks').hidden)PK.openParks();return;}const b=e.target.closest('[data-sec]');if(!b)return;const id=b.dataset.sec;
   if($('#view-home').hidden){show('home');push({view:'home',section:id});goSection(id,false);}else{replace({view:'home',section:id});goSection(id,true);}};
 function markSection(id){document.querySelectorAll('.nav [data-sec]').forEach(b=>b.setAttribute('aria-current',String(b.dataset.sec===id)));}
 if('IntersectionObserver' in window){const io=new IntersectionObserver(es=>{if($('#view-home').hidden)return;es.forEach(en=>{if(en.isIntersecting)markSection(en.target.id);});},{rootMargin:'-40% 0px -55% 0px'});SECTIONS.forEach(id=>{const el=document.getElementById(id);if(el)io.observe(el);});}
@@ -1416,7 +1498,7 @@ function openTour(id,fromHistory){
   $('#dInc').innerHTML=t.inc.map(x=>`<li><span class="tick">✓</span>${esc(x)}</li>`).join('');
   $('#dExc').innerHTML=t.exc.map(x=>`<li><span class="tick cross">–</span>${esc(x)}</li>`).join('');
   $('#dBring').innerHTML=t.bring.map(x=>`<li>${esc(x)}</li>`).join('');
-  priceRail();show('tour');renderTourMap(t);renderTravel(t);renderFood(t);renderVideos(t);renderGuides(t);renderHotels(t);
+  priceRail();show('tour');renderTourMap(t);renderTravel(t);renderFood(t);renderVideos(t);renderGuides(t);renderHotels(t);if(window.PK)PK.onTour(t);
   if(!fromHistory)push({view:'tour',tour:id});
 }
 function priceRail(){if(!st.tour)return;$('#dPrice').textContent=money(st.tour.price);$('#dKzt').textContent=st.cur==='KZT'?'':`≈ ${Math.round(st.tour.price).toLocaleString('en-US').replace(/,/g,' ')} ₸ · you pay in ${st.cur}`;}
@@ -1731,7 +1813,7 @@ function confirmBooking(){
   <p><b>Included:</b> ${t.inc.map(x=>`<span>${esc(x)}</span>`).join(' · ')}</p><p><b>Not included:</b> ${t.exc.map(x=>`<span>${esc(x)}</span>`).join(' · ')}</p>
   <p><b>Cancellation:</b> free until 7 days before departure, refunded to the same card.</p><p class="muted" style="font-size:13px">Samruk Travel LLP · Astana · Tour operator licence TO-000000 (sample)</p>`;
   $('#cGuide').innerHTML=`<span class="ava" style="background:${g.c}">${g.n[0]}</span><div><b>${g.n}</b><small>${esc(g.l)}</small><small>WhatsApp: +7 700 000 00 00 (sample)</small></div>`;
-  st.booked=true;show('done');push({view:'done'});
+  st.booked=true;if(window.PK)PK.onBooked(t.id,code);show('done');push({view:'done'});
 }
 
 /* ---------- choices per tour: guide and hotel ---------- */
@@ -2403,6 +2485,9 @@ $('#lang').onchange=e=>{st.lang=e.target.value;try{localStorage.setItem('sr_lang
 renderHome();renderConveyor();applyLang();initHomeMap();
 {const init=parseHash();replace(init);if(init.view!=='home'||init.section)apply(init);}
 </script>
+<script src="assets/parks/qrcode.js"></script>
+<script src="assets/parks/i18n.js"></script>
+<script src="assets/parks/parks.js"></script>
 <script type="module" src="assets/intro/intro.js"></script>
 </body>
 </html>
