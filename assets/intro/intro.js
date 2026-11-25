@@ -347,7 +347,7 @@ const loadTex = (f, srgb) => texLoader.loadAsync(asset(f)).then((t) => {
 });
 const fontReady = (async () => {
   try {
-    await Promise.race([document.fonts.load('600 200px "Fredoka"'), new Promise((r) => setTimeout(r, 2500))]);
+    await Promise.race([document.fonts.load('700 200px "Fredoka"'), new Promise((r) => setTimeout(r, 2500))]);
   } catch (e) { /* fall back to the next font in the stack */ }
 })();
 
@@ -934,7 +934,7 @@ function rasterTitle(lines) {
   const c = document.createElement('canvas');
   const fs = 300, pad = 120, gap = 46, lineH = fs * 1.12;
   const x = c.getContext('2d', { willReadFrequently: true });
-  const font = `600 ${fs}px "Fredoka", "Baloo 2", "Nunito", "Arial Rounded MT Bold", "Segoe UI", system-ui, sans-serif`;
+  const font = `700 ${fs}px "Fredoka", "Baloo 2", "Nunito", "Arial Rounded MT Bold", "Segoe UI", system-ui, sans-serif`;
   x.font = font;
   const rows = lines.map((text) => {
     const widths = [...text].map((ch) => x.measureText(ch).width);
@@ -1037,7 +1037,7 @@ function buildTitle(L, F) {
     const dn = p.dn;
     const size = p.kind
       ? dmaxW * lerp(0.3, 0.52, r())
-      : clamp(2.2 * p.dl / R.dmax, 0.5, 1.45) * dmaxW * lerp(0.88, 1.12, r());
+      : clamp(2.3 * p.dl / R.dmax, 0.55, 1.5) * dmaxW * lerp(0.88, 1.12, r());
     const z = p.kind ? (r() - 0.5) * dmaxW * 0.6 : dn * dmaxW * lerp(0.4, 1.2, r());
     const bright = clamp(0.93 + 0.32 * up * (1 - dn) + 0.1 * dn + (r() - 0.5) * 0.14, 0.55, 1.3);
     const rim = (1 - dn) * (0.85 - 0.4 * up);
@@ -1080,7 +1080,8 @@ function buildTitle(L, F) {
   g.setAttribute('aE', new THREE.InstancedBufferAttribute(aE, 4));
   g.setAttribute('aT', new THREE.InstancedBufferAttribute(aT, 4));
   const p = sky.pal;
-  const m = puffMaterial({ defines: { TEXT: '' }, lit: p.tLit, shade: p.tShade, rim: p.tRim });
+  // 10% see-through so the letters read as cloud rather than cotton
+  const m = puffMaterial({ defines: { TEXT: '' }, lit: p.tLit, shade: p.tShade, rim: p.tRim, opacity: 0.9 });
   const mesh = new THREE.Mesh(g, m);
   mesh.frustumCulled = false;
   mesh.renderOrder = 4;
