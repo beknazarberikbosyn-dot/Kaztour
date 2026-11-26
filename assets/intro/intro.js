@@ -5,7 +5,7 @@
    same canvas stays behind the page as the sky, and the cloud title keeps billowing.
 
    Page contract (index.html):
-     canvas#sky3d        canvas that fills the hero at the top of the home page; it is the hero's background
+     canvas#sky3d        fixed full-screen canvas behind the page
      #intro              overlay: #introSkip, #introTag, #introLoad
      #heroSky            transparent stage in the hero; the cloud title is centred on it
      html.intro-pending  set by an inline script; this module swaps it for
@@ -64,15 +64,13 @@ const MORPH = 1.35;        // trail → letter morph time
 /* ------------------------------------------------------------------ DOM */
 const root = document.documentElement;
 const canvas = document.getElementById('sky3d');
-/* the scene is sized to the hero box, not to the window */
-const VW = () => canvas.clientWidth || innerWidth, VH = () => canvas.clientHeight || innerHeight;
 const $ = (s) => document.querySelector(s);
 const ui = { skip: $('#introSkip'), tag: $('#introTag'), load: $('#introLoad'), bar: $('#introBar'), stage: $('#heroSky') };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const darkMQ = matchMedia('(prefers-color-scheme: dark)');
 const isDark = () => (root.dataset.theme ? root.dataset.theme === 'dark' : darkMQ.matches);
 const hashView = (location.hash || '').slice(1);
-const wantIntro = !reduceMotion && (!hashView || hashView === 'top');   // only when the visitor lands on the home page
+const wantIntro = root.classList.contains('intro-pending') && !reduceMotion && (!hashView || hashView === 'top');
 
 /* ------------------------------------------------------------------ renderer */
 let renderer;
@@ -81,10 +79,10 @@ try {
 } catch (e) {
   fail(e);
 }
-const small = Math.min(VW(), VH()) < 700;
+const small = Math.min(innerWidth, innerHeight) < 700;
 const DPR = Math.min(devicePixelRatio || 1, small ? 2 : 1.6);
 renderer.setPixelRatio(DPR);
-renderer.setSize(VW(), VH(), false);
+renderer.setSize(innerWidth, innerHeight, false);
 renderer.toneMapping = THREE.NeutralToneMapping;
 renderer.toneMappingExposure = 1.0;
 renderer.shadowMap.enabled = true;
@@ -368,7 +366,7 @@ function palette(dark) {
 
 /* ================================================================== SPACE */
 const space = { scene: new THREE.Scene() };
-space.cam = new THREE.PerspectiveCamera(40, VW() / VH(), 0.01, 400);
+space.cam = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.01, 400);
 space.earth = new THREE.Group();
 space.scene.add(space.earth);
 const SUN_WORLD = latLonDir(12, 30);
@@ -766,7 +764,7 @@ function buildSpaceTrail() {
 
 /* ================================================================== SKY */
 const sky = { scene: new THREE.Scene() };
-sky.cam = new THREE.PerspectiveCamera(30, VW() / VH(), 0.5, 2500);
+sky.cam = new THREE.PerspectiveCamera(30, innerWidth / innerHeight, 0.5, 2500);
 sky.D = 40;
 
 const SKY_VERT = /* glsl */`
@@ -913,7 +911,7 @@ function buildCloudSea(p) {
 
 /* -------------------------------- layout for the flight and the title */
 function skyLayout() {
-  const W = VW(), H = VH();
+  const W = innerWidth, H = innerHeight;
   const viewH = 2 * sky.D * Math.tan((30 * D2R) / 2);   // the side-view lens, whatever the camera is doing now
   const viewW = viewH * (W / H);
   const k = clamp(viewW / 38, 0.3, 1.15);
@@ -1204,15 +1202,15 @@ let composer, bloom;
 function buildSpaceComposer() {
   composer = new EffectComposer(renderer);
   composer.setPixelRatio(DPR);
-  composer.setSize(VW(), VH());
+  composer.setSize(innerWidth, innerHeight);
   composer.addPass(new RenderPass(space.scene, space.cam));
-  bloom = new UnrealBloomPass(new THREE.Vector2(VW(), VH()), 0.5, 0.45, 0.96);
+  bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.5, 0.45, 0.96);
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
 }
 
 /* -------------------------------- space choreography */
-const DM = clamp(Math.pow(1.35 / (VW() / VH()), 0.5), 1, 1.55);   // >1 on portrait screens
+const DM = clamp(Math.pow(1.35 / (innerWidth / innerHeight), 0.5), 1, 1.55);   // >1 on portrait screens
 const tmpV = new THREE.Vector3(), tmpV2 = new THREE.Vector3(), tmpQ = new THREE.Quaternion(), tmpM = new THREE.Matrix4(), invM = new THREE.Matrix4();
 const X_AXIS = new THREE.Vector3(1, 0, 0), Y_AXIS = new THREE.Vector3(0, 1, 0);
 
@@ -1232,7 +1230,7 @@ const easeSine = (t) => 0.5 - 0.5 * Math.cos(Math.PI * clamp(t, 0, 1));
 // the chase pose, in airliner units (× its scale), shared by the space and sky scenes so the
 // airliner stays pixel-identical while the background changes from Earth to sky
 const CHASE = { off: new THREE.Vector3(-5.5, 2.0, 27), look: new THREE.Vector3(1.6, 0.2, 0), fov: 34 };
-CHASE.off.multiplyScalar(clamp(1.45 / (VW() / VH()), 1, 2.8));   // stand further back on narrow screens
+CHASE.off.multiplyScalar(clamp(1.45 / (innerWidth / innerHeight), 1, 2.8));   // stand further back on narrow screens
 
 // departure: from Astana heading east (slightly toward the camera), climbing, then levelling off
 const PL = (() => {
@@ -1346,7 +1344,7 @@ function updateSpace(t, dt) {
     const p = tmpV2.copy(space.dot.position);
     space.earth.localToWorld(p);
     p.project(cam);
-    const x = (p.x * 0.5 + 0.5) * VW(), y = (-p.y * 0.5 + 0.5) * VH();
+    const x = (p.x * 0.5 + 0.5) * innerWidth, y = (-p.y * 0.5 + 0.5) * innerHeight;
     ui.tag.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
   }
 
@@ -1437,7 +1435,7 @@ function updateSky(tau, dt) {
   const L = S.layout, F = S.flight, cam = sky.cam;
   const cx = F.camX(tau);
   const shake = (1 - sstep(SKY_CRUISE, SKY_CRUISE + 0.8, tau)) * L.k * sstep(1.2, 2.2, tau);
-  cam.position.set(cx + Math.sin(tau * 23) * 0.015 * shake, Math.sin(tau * 17 + 2) * 0.02 * shake, sky.D);   // the canvas scrolls with the page, the camera does not
+  cam.position.set(cx + Math.sin(tau * 23) * 0.015 * shake, Math.sin(tau * 17 + 2) * 0.02 * shake - S.scrollY * L.worldPerPx, sky.D);
   // stop sinking once the title is out of view: the cards then sit over the cloud tops
   cam.position.y = Math.max(cam.position.y, -L.viewH * 0.85);
   skyLook.set(cam.position.x, cam.position.y, 0);
@@ -1601,7 +1599,8 @@ function loop(now) {
 function finishPage() {
   root.classList.remove('intro-pending', 'intro-playing');
   root.classList.add('intro-done');
-
+  // the page has its own photo hero: the sky fades out (CSS) and stops rendering
+  setTimeout(() => { cancelAnimationFrame(rafId); running = false; }, 1500);
   if (ui.skip) ui.skip.hidden = true;
   if (ui.load) ui.load.hidden = true;
   if (ui.tag) ui.tag.classList.remove('on');
@@ -1634,11 +1633,11 @@ function onScroll() {
 
 let resizeT = 0;
 function onResize() {
-  renderer.setSize(VW(), VH(), false);
-  space.cam.aspect = sky.cam.aspect = VW() / VH();
+  renderer.setSize(innerWidth, innerHeight, false);
+  space.cam.aspect = sky.cam.aspect = innerWidth / innerHeight;
   space.cam.updateProjectionMatrix();
   sky.cam.updateProjectionMatrix();
-  if (composer) composer.setSize(VW(), VH());
+  if (composer) composer.setSize(innerWidth, innerHeight);
   clearTimeout(resizeT);
   resizeT = setTimeout(() => {
     if (S.phase !== 'done' || !S.title) { S.needsRender = true; return; }
@@ -1697,8 +1696,9 @@ async function boot() {
     ui.skip.addEventListener('click', skipToEnd);
   }
   addEventListener('keydown', (e) => { if (e.key === 'Escape') skipToEnd(); });
+  window.scrollTo(0, 0);
 
-  const big = !small && Math.max(VW(), VH()) * DPR > 1000;
+  const big = !small && Math.max(innerWidth, innerHeight) * DPR > 1000;
   let tex;
   try {
     const [day, night, water, bump, clouds] = await Promise.all([

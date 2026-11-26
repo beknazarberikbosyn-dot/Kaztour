@@ -103,6 +103,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>
+/* Intro gate: hide the page until the 3D intro takes over (or give up after 9 s). */
+(function(){var d=document.documentElement,h=location.hash.slice(1),rm=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+if(rm||(h&&h!=='top'))return;d.classList.add('intro-pending');
+setTimeout(function(){if(d.classList.contains('intro-pending')){d.classList.remove('intro-pending');d.classList.add('intro-done','no-webgl');}},9000);})();
+</script>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="assets/parks/parks.css">
@@ -529,6 +535,11 @@ html.no-webgl .cloud-fallback{display:grid;place-content:center;text-align:cente
 
 /* ---------- intro overlay ---------- */
 .intro{position:fixed;inset:0;z-index:60;pointer-events:none;display:none;color:#fff}
+html.intro-pending .intro,html.intro-playing .intro{display:block}
+html.intro-pending,html.intro-playing{background:#02040a;overflow:hidden}
+html.intro-pending body,html.intro-playing body{overflow:hidden}
+html.intro-pending body>*:not(#sky3d):not(#intro):not(script),html.intro-playing body>*:not(#sky3d):not(#intro):not(script){visibility:hidden;opacity:0}
+html.intro-pending body::before,html.intro-playing body::before{display:none}
 .intro-load{position:absolute;left:50%;bottom:18vh;transform:translateX(-50%);width:min(260px,64vw);display:grid;gap:12px;justify-items:center;font:500 12px/1.2 var(--body);letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.7)}
 .intro-load i{display:block;width:100%;height:2px;border-radius:2px;background:rgba(255,255,255,.16);overflow:hidden}
 .intro-load b{display:block;height:100%;background:linear-gradient(90deg,#E9B32C,#fff);transform:scaleX(0);transform-origin:left;transition:transform .3s ease}
@@ -544,6 +555,10 @@ html.no-webgl .cloud-fallback{display:grid;place-content:center;text-align:cente
 .intro-tag span::after{content:"";position:absolute;left:100%;top:50%;width:18px;height:1.5px;background:linear-gradient(90deg,rgba(241,194,75,.95),rgba(241,194,75,.2))}
 
 /* page reveal once the title has formed */
+html.intro-done body>header{animation:skyDrop .9s cubic-bezier(.2,.8,.2,1) both}
+html.intro-done .demo{animation:skyFade .7s ease both}
+html.intro-done #view-home .hero-grid>*{animation:skyRise 1s cubic-bezier(.2,.8,.2,1) both}
+html.intro-done #view-home .hero-grid>*:nth-child(2){animation-delay:.14s}
 @keyframes skyDrop{from{transform:translateY(-110%);opacity:0}to{transform:none;opacity:1}}
 @keyframes skyRise{from{transform:translateY(48px);opacity:0}to{transform:none;opacity:1}}
 @keyframes skyFade{from{opacity:0}to{opacity:1}}
@@ -552,6 +567,12 @@ html.no-webgl .cloud-fallback{display:grid;place-content:center;text-align:cente
 <link rel="stylesheet" href="assets/theme.css">
 </head>
 <body>
+<canvas id="sky3d" aria-hidden="true"></canvas>
+<div class="intro" id="intro">
+  <div class="intro-load" id="introLoad"><span>Preparing for departure</span><i><b id="introBar"></b></i></div>
+  <div class="intro-tag" id="introTag" aria-hidden="true"><span><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M2.5 19h19v2h-19zM22.07 9.64c-.21-.8-1.04-1.28-1.84-1.06L14.92 10 8 3.57l-1.93.51 4.14 7.17-4.97 1.33-1.97-1.54-1.45.39 2.59 4.49 16.6-4.44c.81-.23 1.28-1.05 1.06-1.84z"/></svg>Departure: <em>Kazakhstan</em></span></div>
+  <button class="intro-skip" id="introSkip" type="button" onclick="var d=document.documentElement;if(d.classList.contains('intro-pending')){d.classList.remove('intro-pending');d.classList.add('intro-done');}">Skip intro <span aria-hidden="true">›</span></button>
+</div>
 <div class="demo"><div class="wrap"><strong>Concept prototype</strong><span>Samruk Travel is a fictional company. Prices, reviews and guides are sample data. No real bookings or payments happen here.</span></div></div>
 
 <header>
@@ -580,26 +601,16 @@ html.no-webgl .cloud-fallback{display:grid;place-content:center;text-align:cente
 <main>
 <!-- HOME -->
 <div id="view-home">
-  <section class="hero hero-anim" aria-label="Samruk Travel">
+  <section class="hero">
     <div class="hero-sky" id="heroSky" aria-hidden="true"></div>
     <div class="hero-art" id="heroArt"></div>
-    <canvas id="sky3d" aria-hidden="true"></canvas>
-    <div class="intro" id="intro">
-      <div class="intro-load" id="introLoad"><span>Preparing for departure</span><i><b id="introBar"></b></i></div>
-      <div class="intro-tag" id="introTag" aria-hidden="true"><span><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M2.5 19h19v2h-19zM22.07 9.64c-.21-.8-1.04-1.28-1.84-1.06L14.92 10 8 3.57l-1.93.51 4.14 7.17-4.97 1.33-1.97-1.54-1.45.39 2.59 4.49 16.6-4.44c.81-.23 1.28-1.05 1.06-1.84z"/></svg>Departure: <em>Kazakhstan</em></span></div>
-      <button class="intro-skip" id="introSkip" type="button">Skip intro <span aria-hidden="true">›</span></button>
-    </div>
     <a class="hero-credit" id="heroCredit" href="https://commons.wikimedia.org" target="_blank" rel="noopener">Photo: Big Almaty Lake, Wikimedia Commons</a>
-    <button class="hero-down" type="button" data-sec-go="start" aria-label="Scroll down"><span aria-hidden="true"></span></button>
-  </section>
-
-  <section class="start" id="start">
-    <div class="wrap start-grid">
+    <div class="wrap hero-grid">
       <div class="hero-copy">
         <div class="eyebrow" data-i18n="heroEyebrow">Kazakhstan on your own, even with no signal</div>
         <h1 data-i18n="heroTitle">Canyons, mountain lakes and Silk Road cities. Go on your own, with local hosts.</h1>
         <p class="lead" data-i18n="heroLead">An offline guide for independent travellers: the route, park toilets, water and signal, and SOS all work without internet. Book guides, drivers and guesthouses directly with local hosts, with no agency in between.</p>
-        <div class="hero-cta"><button class="btn btn-gold" data-sec-go="tours">See the routes</button><button class="btn btn-line" data-goview="parks">Park map</button></div>
+        <div class="hero-cta"><button class="btn btn-gold" data-sec-go="tours">See the routes</button><button class="btn btn-ghost" data-goview="parks">Park map</button></div>
       </div>
       <div class="planner" id="planner">
         <div>
@@ -2239,12 +2250,6 @@ $('#cur').onchange=e=>{st.cur=e.target.value;try{localStorage.setItem('sr_cur',s
 $('#lang').onchange=e=>{st.lang=e.target.value;try{localStorage.setItem('sr_lang',st.lang);}catch(x){}applyLang();if(!$('#view-book').hidden)renderBooking();};
 
 renderHome();renderConveyor();applyLang();initHomeMap();
-/* entrance effect: every block under the hero fades up once, when it scrolls into view */
-(function(){if(!('IntersectionObserver' in window)||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
-  const els=[...document.querySelectorAll('#view-home .start .start-grid>*,#view-home .trustbar .wrap>div,#view-home .conveyor,#view-home section.block .section-head,#view-home section.block .pk-home>*,#view-home .tour-card,#view-home #map360 .map,#view-home .trust>*,#view-home .review,.contact .wrap>*,footer .wrap')];
-  const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}}),{rootMargin:'0px 0px -8% 0px',threshold:.08});
-  els.forEach(el=>{const sib=[...el.parentElement.children].indexOf(el);el.style.setProperty('--d',Math.min(sib,6)*0.07+'s');el.classList.add('reveal');io.observe(el);});
-})();
 {const init=parseHash();replace(init);if(init.view!=='home'||init.section)apply(init);}
 </script>
 <script src="assets/parks/qrcode.js"></script>
