@@ -473,7 +473,7 @@ async function readPhoto(file){
 
 /* ---------- OFFLINE PACK ---------- */
 function packUrls(tid){
-  const t=tourOf(tid),u=['./','index.html','manifest.webmanifest','assets/parks/parks.js','assets/parks/parks.css','assets/parks/qrcode.js','assets/parks/jsQR.js','assets/parks/config.js','assets/parks/i18n.js','assets/i18n/ru-kk.js','assets/parks/icon-192.png',
+  const t=tourOf(tid),u=['./','index.html','manifest.webmanifest','assets/parks/parks.js','assets/parks/parks.css','assets/parks/qrcode.js','assets/parks/jsQR.js','assets/parks/config.js','assets/parks/i18n.js','assets/i18n/ru-kk.js','assets/theme.css','assets/parks/icon-192.png',
     'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css','https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'];
   if(t&&t.photo)u.push(commonsImg(t.photo.file,640),commonsImg(t.photo.file,960));
   (GALLERY[tid]||[]).forEach(f=>u.push(commonsImg(f,320)));

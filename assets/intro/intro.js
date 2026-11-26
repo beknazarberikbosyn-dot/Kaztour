@@ -916,7 +916,7 @@ function skyLayout() {
   const viewW = viewH * (W / H);
   const k = clamp(viewW / 38, 0.3, 1.15);
   let cy = H * 0.36, sh = H * 0.5;
-  if (ui.stage) {
+  if (ui.stage && ui.stage.offsetHeight) {   // the redesigned page has no sky stage: then the title is centred on the screen
     const r = ui.stage.getBoundingClientRect();
     cy = r.top + (window.scrollY || 0) + r.height / 2;
     sh = r.height;
@@ -1599,6 +1599,8 @@ function loop(now) {
 function finishPage() {
   root.classList.remove('intro-pending', 'intro-playing');
   root.classList.add('intro-done');
+  // the page has its own photo hero: the sky fades out (CSS) and stops rendering
+  setTimeout(() => { cancelAnimationFrame(rafId); running = false; }, 1500);
   if (ui.skip) ui.skip.hidden = true;
   if (ui.load) ui.load.hidden = true;
   if (ui.tag) ui.tag.classList.remove('on');
