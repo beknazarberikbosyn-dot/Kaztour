@@ -474,11 +474,13 @@ void main(){
   float lights = texture2D(uNight, vUv).r;
   c += vec3(1.0, 0.7, 0.36) * pow(lights, 1.7) * 1.6 * (1.0 - smoothstep(-0.25, 0.08, ndl0)) * (1.0 - cl * 0.8);
 
-  float fres = pow(1.0 - max(dot(N0, V), 0.0), 2.6);
-  vec3 sky = vec3(0.3, 0.56, 1.0);
-  c = mix(c, sky * (0.12 + 0.85 * day), clamp(fres * 0.7 + 0.06 * day, 0.0, 1.0) * smoothstep(-0.35, 0.25, ndl0));
-  float dusk = smoothstep(-0.28, 0.02, ndl0) * (1.0 - smoothstep(0.02, 0.32, ndl0));
-  c += vec3(1.0, 0.45, 0.18) * dusk * (0.05 + fres * 0.22);
+  // air seen through at a slant: a thin veil over the disc that thickens and pales toward the limb
+  float mu = max(dot(N0, V), 0.0);
+  float fres = pow(1.0 - mu, 2.2);
+  vec3 sky = mix(vec3(0.27, 0.5, 0.98), vec3(0.6, 0.77, 1.0), fres);
+  c = mix(c, sky * (0.1 + 0.8 * day), clamp(fres * 0.62 + 0.05 * day, 0.0, 1.0) * smoothstep(-0.4, 0.3, ndl0));
+  float dusk = smoothstep(-0.3, 0.02, ndl0) * (1.0 - smoothstep(0.02, 0.36, ndl0));
+  c = mix(c, c * vec3(1.25, 0.82, 0.62) + vec3(0.06, 0.025, 0.01) * fres, dusk * 0.6);
   gl_FragColor = vec4(c, 1.0);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
@@ -514,12 +516,17 @@ void main(){
   float tc = max(dot(-uCamW, rd), 0.0);
   vec3 pc = uCamW + rd * tc;               // closest point of the ray to the centre
   float b = length(pc);
-  float x = (b - 1.0) / 0.13;
-  float g = exp(-max(x, 0.0) * 5.5) * 1.1 + exp(-max(x, 0.0) * 1.8) * 0.18;
-  g *= smoothstep(-0.02, 0.01, b - 1.0);
-  float lit = smoothstep(-0.3, 0.5, dot(normalize(pc), normalize(uSunW)));
-  vec3 c = mix(vec3(0.04, 0.08, 0.3), vec3(0.32, 0.6, 1.0), lit) * g * (0.25 + 1.2 * lit);
-  c += vec3(1.0, 0.5, 0.25) * g * 0.35 * lit * (1.0 - lit) * 4.0 * 0.25;
+  float h = b - 1.0;                         // lowest altitude the ray reaches
+  float x = max(h, 0.0) / 0.16;
+  // optical depth falls off smoothly with height: a dense, bright core and a long soft tail
+  float g = exp(-x * 4.0) * 0.85 + exp(-x * 1.5) * 0.13;
+  g *= smoothstep(-0.035, 0.02, h);          // fades into the planet instead of a hard edge
+  float lit = smoothstep(-0.45, 0.7, dot(normalize(pc), normalize(uSunW)));
+  // low air is pale, almost white-blue; higher up it deepens to blue, then fades into space
+  vec3 day = mix(vec3(0.56, 0.75, 1.0), vec3(0.17, 0.37, 0.96), smoothstep(0.0, 0.75, x));
+  vec3 c = mix(vec3(0.025, 0.05, 0.17), day, lit) * g * (0.18 + 1.0 * lit);
+  // warm tint along the terminator, mixed in rather than added, so it stays a tint
+  c = mix(c, c * vec3(1.3, 0.86, 0.68), lit * (1.0 - lit) * 4.0 * 0.4);
   gl_FragColor = vec4(c, 1.0);
 }`;
 
@@ -551,7 +558,7 @@ function buildEarth(tex) {
     uniforms: { uSunW: { value: SUN_WORLD }, uCamW: { value: new THREE.Vector3() } },
     side: THREE.BackSide, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false,
   });
-  const at = new THREE.Mesh(new THREE.SphereGeometry(1.14, 128, 64), space.atmoMat);
+  const at = new THREE.Mesh(new THREE.SphereGeometry(1.19, 128, 64), space.atmoMat);
   at.renderOrder = 1;
   space.earth.add(at);
 }
@@ -698,30 +705,53 @@ function buildKazakhstan(dayTex) {
   space.earth.add(space.dot);
 }
 
-/* -------------------------------- the one cloud layer the camera dives through */
-function buildDiveClouds() {
-  const mat = puffMaterial({ lit: '#ffffff', shade: '#a9b8d8', rim: '#dfe7f5' });
+/* -------------------------------- low cumulus over Central Asia, seen in the last part of the approach.
+   Small, flattened puffs sit right on the cloud shell, only where the cloud map itself has cloud,
+   so they read as the same clouds gaining relief rather than a separate layer floating in space. */
+function buildDiveClouds(cloudTex) {
+  const mat = puffMaterial({ lit: '#ffffff', shade: '#b4c2db', rim: '#e4ebf6', fog: '#a7c6ee', fogNear: 0.22, fogFar: 1.25, fogMax: 0.5 });
   mat.uniforms.uOpacity.value = 0;
   space.diveMat = mat;
-  const r = rng(21), n = small ? 110 : 160;
+  space.diveGroup = new THREE.Group();
+  space.earth.add(space.diveGroup);
+
+  // read cloud cover for the region the camera flies over
+  const LAT0 = 28, LAT1 = 64, LON0 = 38, LON1 = 98;
+  let cover = () => 0.5;
+  const img = cloudTex && cloudTex.image;
+  if (img && img.width) {
+    const W = img.width, H = img.height;
+    const x0 = Math.floor((LON0 + 180) / 360 * W), x1 = Math.ceil((LON1 + 180) / 360 * W);
+    const y0 = Math.floor((90 - LAT1) / 180 * H), y1 = Math.ceil((90 - LAT0) / 180 * H);
+    const cw = x1 - x0, ch = y1 - y0;
+    const c = document.createElement('canvas');
+    c.width = cw; c.height = ch;
+    const g = c.getContext('2d', { willReadFrequently: true });
+    g.drawImage(img, x0, y0, cw, ch, 0, 0, cw, ch);
+    const px = g.getImageData(0, 0, cw, ch).data;
+    cover = (lat, lon) => {
+      const x = clamp(Math.round((lon + 180) / 360 * W) - x0, 0, cw - 1);
+      const y = clamp(Math.round((90 - lat) / 180 * H) - y0, 0, ch - 1);
+      return px[(y * cw + x) * 4] / 255;
+    };
+  }
+
+  const r = rng(21), n = small ? 900 : 1600;
   const b = new PuffBatch(n, mat, 6);
-  const p = new THREE.Vector3(), q = new THREE.Vector3(), ax = new THREE.Vector3(), u = new THREE.Vector3(), v = new THREE.Vector3();
+  const p = new THREE.Vector3();
   b.begin();
-  for (let i = 0; i < n; i++) {
-    const e = lerp(0.6, 0.86, r());
-    divePos(e, p);
-    divePos(e + 0.01, q);
-    ax.subVectors(q, p).normalize();
-    u.set(0, 1, 0).cross(ax).normalize();
-    v.copy(ax).cross(u).normalize();
-    const rr = p.length();
-    const a = r() * Math.PI * 2, rad = (0.015 + Math.pow(r(), 0.8) * 0.2) * rr;
-    p.addScaledVector(u, Math.cos(a) * rad).addScaledVector(v, Math.sin(a) * rad);
-    b.push(p.x, p.y, p.z, (0.05 + r() * 0.1) * rr, r() * 6.28, Math.floor(r() * 4), 0.95 + r() * 0.2, 0.3, 0.75, 1.35);
+  for (let tries = 0; b.n < n && tries < n * 30; tries++) {
+    const lat = lerp(LAT0, LAT1, r()), lon = lerp(LON0, LON1, r());
+    const c = sstep(0.32, 0.85, cover(lat, lon));
+    if (r() > c) continue;                                   // cumulus only where the map has cloud
+    latLonDir(lat, lon, p).multiplyScalar(1.0052 + c * 0.0016 + r() * 0.0007);
+    const size = lerp(0.0032, 0.0095, c) * (0.75 + 0.5 * r());
+    const variant = r() < 0.45 ? 2 : (r() < 0.5 ? 0 : 1);   // flat heaps and low domes, no round balls
+    b.push(p.x, p.y, p.z, size, (r() - 0.5) * 0.35, variant, 0.92 + r() * 0.16, 0.22, lerp(0.35, 0.8, c), 1.6 + r() * 0.8);
   }
   b.end();
   space.dive = b;
-  space.scene.add(b.mesh);
+  space.diveGroup.add(b.mesh);
 }
 
 /* -------------------------------- space contrail */
@@ -1189,11 +1219,13 @@ const CAM_A_DIR = latLonDir(26, 64), CAM_A_R = 3.35 * DM;
 const CAM_C_DIR = latLonDir(37, 67), CAM_C_R = 1 + 0.2 * DM;
 const LOOK_C = latLonDir(48.6, 69);
 const UP_C = CAM_C_DIR.clone();
-/** Point on the dive path, e = 0 (globe close-up) … 1 (above Kazakhstan). Radius moves in log space. */
+/** Point on the dive path, e = 0 (globe close-up) … 1 (above Kazakhstan). Altitude moves in log
+    space, the way an orbital zoom feels: fast while far, slowing down as the ground comes close. */
 function divePos(e, out = new THREE.Vector3()) {
   out.copy(CAM_A_DIR).lerp(CAM_C_DIR, e).normalize();
-  return out.multiplyScalar(Math.exp(lerp(Math.log(CAM_A_R), Math.log(CAM_C_R), e)));
+  return out.multiplyScalar(1 + Math.exp(lerp(Math.log(CAM_A_R - 1), Math.log(CAM_C_R - 1), e)));
 }
+const easeSine = (t) => 0.5 - 0.5 * Math.cos(Math.PI * clamp(t, 0, 1));
 
 // the chase pose, in airliner units (× its scale), shared by the space and sky scenes so the
 // airliner stays pixel-identical while the background changes from Earth to sky
@@ -1232,22 +1264,20 @@ const camPos0 = new THREE.Vector3(), camLook0 = new THREE.Vector3(), camUp0 = ne
 const chasePos = new THREE.Vector3(), chaseLook = new THREE.Vector3();
 function updateSpace(t, dt) {
   const cam = space.cam;
-  // Earth spin: fast at first, settling by the end of the dive
+  // Earth turns slowly under the camera and comes to rest by the end of the approach
   const spin = clamp(t / T.diveEnd, 0, 1);
-  space.earth.rotation.y = -70 * D2R * Math.pow(1 - spin, 2);
+  space.earth.rotation.y = -22 * D2R * Math.pow(1 - spin, 1.5);
 
-  // dive: a long, accelerating push-in that ends a couple of hundred km above Kazakhstan
-  const dv = sstep(T.spinEnd - 0.2, T.diveEnd, t);
-  const de = easeInOut(dv);
+  // approach: the camera is already drifting toward the globe, then one long, even push-in
+  // that ends a couple of hundred km above Kazakhstan. No zoom-lens tricks: the field of view
+  // only widens a little near the ground, the way a wide lens shows more of the horizon.
+  const dv = clamp((t - 0.2) / (T.diveEnd - 0.2), 0, 1);
+  const de = easeSine(dv);
   divePos(de, camPos0);
-  if (t > T.diveEnd) camPos0.multiplyScalar(1 - Math.min(t - T.diveEnd, 3) * 0.004);
-  camLook0.set(0, 0, 0).lerp(LOOK_C, easeInOut(sstep(T.spinEnd + 0.4, T.diveEnd - 0.1, t)));
+  camPos0.multiplyScalar(1 - 0.012 * sstep(T.diveEnd - 0.4, T.diveEnd + 3, t));   // keeps gliding down
+  camLook0.set(0, 0, 0).lerp(LOOK_C, easeSine(sstep(1.4, T.diveEnd, t)));
   camUp0.copy(Y_AXIS).lerp(UP_C, de).normalize();
-  let fov = 40 + Math.sin(dv * Math.PI) * 24 + 12 * de;
-  // shake while crossing the cloud layer
-  const thr = sstep(3.2, 3.6, t) * (1 - sstep(3.9, 4.3, t));
-  camPos0.x += Math.sin(t * 61) * 0.003 * thr;
-  camPos0.y += Math.sin(t * 47 + 1) * 0.003 * thr;
+  let fov = lerp(40, 52, sstep(0.45, 1.0, de));
 
   // airliner pose (Earth-local; the globe has stopped turning by take-off)
   const pose = planeSpacePose(t);
@@ -1282,8 +1312,10 @@ function updateSpace(t, dt) {
   space.stars.material.uniforms.uTime.value = t;
   space.atmoMat.uniforms.uCamW.value.copy(cam.position);
 
-  // the cloud layer of the dive
-  space.diveMat.uniforms.uOpacity.value = sstep(2.7, 3.15, t) * (1 - sstep(4.1, 4.45, t));
+  // low cumulus over Central Asia: they ride with the cloud map and grow in as the ground comes close
+  const alt = cam.position.length() - 1;
+  space.diveGroup.rotation.y = -space.cloudMat.uniforms.uCloudShift.value * Math.PI * 2;
+  space.diveMat.uniforms.uOpacity.value = sstep(0.85, 0.42, alt) * (1 - sstep(T.kzIn - 0.2, T.kzIn + 0.5, t));
   space.diveMat.uniforms.uLight.value.copy(SUN_WORLD).transformDirection(cam.matrixWorldInverse);
 
   // Kazakhstan
@@ -1684,7 +1716,7 @@ async function boot() {
   buildStars();
   buildEarth(tex);
   buildKazakhstan(tex.day);
-  buildDiveClouds();
+  buildDiveClouds(tex.clouds);
   buildSpaceTrail();
   buildSpaceComposer();
   S.planeSpace = makePlane();
@@ -1727,8 +1759,7 @@ window.__samrukIntro = {
     render();
     return true;
   },
-  get state() { return { t: S.t, phase: S.phase }; },
-  skip: skipToEnd,
+  get state() { return { t: S.t, phase: S.phase }; },  skip: skipToEnd,
 };
 
 boot().catch(fail);
