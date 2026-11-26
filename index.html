@@ -102,7 +102,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400..600&display=swap" rel="stylesheet">
 <script>
 /* Intro gate: hide the page until the 3D intro takes over (or give up after 9 s). */
 (function(){var d=document.documentElement,h=location.hash.slice(1),rm=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -113,7 +113,7 @@ setTimeout(function(){if(d.classList.contains('intro-pending')){d.classList.remo
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="assets/parks/parks.css">
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#0B5D78">
+<meta name="theme-color" content="#dfdedb">
 <link rel="apple-touch-icon" href="assets/parks/icon-192.png">
 <style>
 /* Layout: sticky header → steppe hero with trip planner → tour cards → trust block; tour page and booking flow are separate views with a summary rail;  */
@@ -565,6 +565,7 @@ html.intro-done #view-home .hero-grid>*:nth-child(2){animation-delay:.14s}
 @media (max-width:560px){.hero-sky{height:clamp(240px,46vh,420px)}.intro-tag span{padding:7px 12px 7px 10px}}
 </style>
 <link rel="stylesheet" href="assets/theme.css">
+<link rel="stylesheet" href="assets/taste.css">
 </head>
 <body>
 <canvas id="sky3d" aria-hidden="true"></canvas>
@@ -615,7 +616,7 @@ html.intro-done #view-home .hero-grid>*:nth-child(2){animation-delay:.14s}
       <div class="planner" id="planner">
         <div>
           <div class="eyebrow" data-i18n="planEyebrow">Trip planner</div>
-          <h3 style="margin-top:4px" data-i18n="planTitle">Tell us your days and interests</h3>
+          <h2 data-i18n="planTitle">Tell us your days and interests</h2>
         </div>
         <div class="row">
           <label for="pDays" data-i18n="planDays">Days available</label>

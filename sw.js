@@ -4,9 +4,9 @@
    - libraries pinned to a version: from the cache
    - map tiles and photos you have seen: kept, with a size limit
    - "Save for offline" sends a list of files for one trip, cached here */
-const V = 'samruk-v4';   // bump to drop every older cache on the next visit
+const V = 'samruk-v5';   // bump to drop every older cache on the next visit
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'assets/parks/parks.css', 'assets/parks/parks.js', 'assets/parks/i18n.js',
-  'assets/parks/qrcode.js', 'assets/parks/jsQR.js', 'assets/parks/config.js', 'assets/i18n/ru-kk.js', 'assets/parks/icon-192.png', 'assets/theme.css', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'];
+  'assets/parks/qrcode.js', 'assets/parks/jsQR.js', 'assets/parks/config.js', 'assets/i18n/ru-kk.js', 'assets/parks/icon-192.png', 'assets/theme.css', 'assets/taste.css', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'];
 const LIMITS = { [V + '-tiles']: 900, [V + '-img']: 160 };
 
 self.addEventListener('install', (e) => {
