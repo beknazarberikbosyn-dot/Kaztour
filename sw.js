@@ -1,9 +1,10 @@
 /* Samruk Travel service worker: the site and saved trips open with no mobile signal.
-   - the page itself: network first, so updates arrive; the saved copy when offline
-   - our own files and libraries: from the cache, refreshed in the background
+   - the page and our own scripts, styles and data: network first (revalidated, so a new deploy
+     shows on the next load); the saved copy when offline
+   - libraries pinned to a version: from the cache
    - map tiles and photos you have seen: kept, with a size limit
    - "Save for offline" sends a list of files for one trip, cached here */
-const V = 'samruk-v1';
+const V = 'samruk-v2';   // bump to drop every older cache on the next visit
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'assets/parks/parks.css', 'assets/parks/parks.js', 'assets/parks/i18n.js',
   'assets/parks/qrcode.js', 'assets/parks/icon-192.png', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'];
 const LIMITS = { [V + '-tiles']: 900, [V + '-img']: 160 };
@@ -27,18 +28,19 @@ async function cacheFirst(req, name) {
   if (res && (res.ok || res.type === 'opaque')) { const c = await caches.open(name); c.put(req, res.clone()).then(() => trim(name)); }
   return res;
 }
-async function staleWhileRevalidate(req) {
-  const hit = await caches.match(req);
-  const net = fetch(req).then((res) => { if (res && (res.ok || res.type === 'opaque')) caches.open(V).then((c) => c.put(req, res.clone())); return res; }).catch(() => hit);
-  return hit || net;
-}
 async function networkFirst(req) {
+  const nav = req.mode === 'navigate';
   try {
-    const res = await fetch(req);
+    // 'no-cache' asks the server whether the file changed (a cheap 304 when it did not),
+    // so the browser's own HTTP cache cannot hand back a file from an older deploy
+    const res = await fetch(nav ? req : new Request(req, { cache: 'no-cache' }));
     if (res && res.ok) { const c = await caches.open(V); c.put(req, res.clone()); }
     return res;
   } catch (err) {
-    return (await caches.match(req, { ignoreSearch: true })) || (await caches.match('index.html')) || (await caches.match('./')) || Response.error();
+    const hit = await caches.match(req, { ignoreSearch: true });
+    if (hit) return hit;
+    if (nav) return (await caches.match('index.html')) || (await caches.match('./')) || Response.error();
+    return Response.error();
   }
 }
 
@@ -52,7 +54,7 @@ self.addEventListener('fetch', (e) => {
   if (/^(unpkg\.com|cdn\.jsdelivr\.net|fonts\.googleapis\.com|fonts\.gstatic\.com)$/.test(u.hostname)) { e.respondWith(cacheFirst(req, V)); return; }
   if (u.origin === self.location.origin) {
     if (u.pathname.endsWith('.mp3')) { e.respondWith(caches.match(req.url).then((h) => h || fetch(req))); return; } // narration saved with a trip plays offline
-    e.respondWith(staleWhileRevalidate(req)); return;
+    e.respondWith(networkFirst(req)); return;
   }
   // everything else (Google panoramas, YouTube): straight to the network
 });
