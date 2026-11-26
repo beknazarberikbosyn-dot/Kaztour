@@ -209,7 +209,9 @@ async function sync(){
       sent=o.filter(r=>r.src!=='relay').length;relayed=o.length-sent;changed=true;
     }
     if(await pushCheckins())changed=true;
+    if(await pushPasses())changed=true;
     if(API&&await pull())changed=true;
+    if(API&&await pullHosts())changed=true;
     srvErr=null;
   }catch(e){srvErr=String(e.message||e);}
   syncing=false;paintNet();
@@ -231,15 +233,16 @@ async function setStatus(ids,status){
 /* live updates: the office on the projector asks the server every few seconds; tabs of one browser hear each other at once */
 let chan=null;try{chan=new BroadcastChannel('samruk-parks');chan.onmessage=()=>rerender();}catch(e){}
 function bc(m){try{chan&&chan.postMessage(m);}catch(e){}}
-window.addEventListener('storage',e=>{if([SRV,OUT,SAMPLE,CKSRV,CK].includes(e.key))rerender();});
+window.addEventListener('storage',e=>{if([SRV,OUT,SAMPLE,CKSRV,CK,HST,HMINE,PSRV,PMINE].includes(e.key))rerender();});
 window.addEventListener('online',()=>{paintNet();setTimeout(sync,400);});
 window.addEventListener('offline',paintNet);
 const tick={k:''};
 setInterval(()=>{
   if(document.hidden||!online())return;
   const office=!$('#view-office').hidden,busy=!$('#view-parks').hidden||!$('#view-pack').hidden;
-  if(outbox().length||load(CKQ,[]).length)sync();
-  else if(API&&(office||busy)&&Date.now()-lastPull>(office?2500:12000))pull().then(ch=>{if(ch)rerender();srvErr=null;}).catch(e=>{srvErr=String(e.message||e);paintNet();});
+  const hv=!$('#view-host').hidden;
+  if(outbox().length||load(CKQ,[]).length||load(PQ,[]).length)sync();
+  else if(API&&(office||busy||hv)&&Date.now()-lastPull>(office||hv?2500:12000))Promise.all([pull(),pullHosts()]).then(([a,b])=>{if(a||b)rerender();srvErr=null;}).catch(e=>{srvErr=String(e.message||e);paintNet();});
   if(office&&!API){const k=JSON.stringify(checkins().map(c=>c.state));if(k!==tick.k){tick.k=k;renderOffice();}} // overdue check-ins appear without a reload
 },3000);
 
@@ -356,7 +359,7 @@ function parkSvg(pk,o={}){
   const nArrow=`<g transform="translate(${W-46} 46)"><circle r="24" fill="var(--surface)" stroke="var(--line)"/><path d="M0-15 7 6 0 2-7 6z" fill="var(--ink)"/><text y="20" text-anchor="middle" font-size="11" font-weight="700" fill="var(--muted)">N</text></g>`;
   const sc=Math.pow(10,Math.floor(Math.log10((W/sx)*111320/3)));const scPx=sc/111320*sx;
   const scale=`<g transform="translate(24 ${(Hh-26).toFixed(0)})"><path d="M0 0h${scPx.toFixed(1)}" stroke="var(--ink)" stroke-width="3"/><path d="M0-6v6M${scPx.toFixed(1)}-6v6" stroke="var(--ink)" stroke-width="2"/><text x="${(scPx/2).toFixed(1)}" y="-9" text-anchor="middle" font-size="13" fill="var(--muted)">${sc>=1000?sc/1000+' km':sc+' m'}</text></g>`;
-  return {svg:`<svg class="pk-plan" viewBox="0 0 ${W} ${Hh.toFixed(0)}" role="img" aria-label="${esc(tx('Offline plan of the park'))}"><rect width="${W}" height="${Hh.toFixed(0)}" rx="18" class="pk-planbg"/>${sig}${crowd}${trail}${fac}${lbl}${me}${nArrow}${scale}</svg>`,proj:{X,Y}};
+  return {svg:`<svg class="pk-plan" viewBox="0 0 ${W} ${Hh.toFixed(0)}" role="img" aria-label="${esc(tx('Offline plan of the park'))}"><rect width="${W}" height="${Hh.toFixed(0)}" rx="18" class="pk-planbg"/>${sig}${crowd}${trail}${fac}${(o.hosts||[]).map(h=>{const x=+X(h.lng),y=+Y(h.lat);return x<10||y<10||x>W-10||y>Hh-10?'':`<g class="pk-svgh" data-hostid="${h.id}" transform="translate(${x} ${y})"><rect x="-19" y="-19" width="38" height="38" rx="9"/><g transform="translate(-12 -12)">${ICO.host}</g></g>`;}).join('')}${lbl}${me}${nArrow}${scale}</svg>`,proj:{X,Y}};
 }
 
 /* ---------- where am I: GPS works without mobile data ---------- */
@@ -370,11 +373,11 @@ const nearPark=pk=>me&&dist(me.lat,me.lng,PARKS[pk].c[0],PARKS[pk].c[1])<4000;
 function paintMe(){if(!$('#view-pack').hidden&&cur.pack&&!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#packBox input')))renderPack(cur.pack,true);if(!$('#view-parks').hidden&&pmap.me&&me&&window.L){pmap.me.setLatLng([me.lat,me.lng]).addTo(pmap.m);}}
 /* nearest facility of a type, from me or from the gate */
 function nearest(pk,type,from){const P=PARKS[pk];const o=from||{lat:P.f[0].lat,lng:P.f[0].lng};
-  let best=null;const list=type==='signal'?P.sig.filter(s=>s.q>0).map(s=>({lat:s.lat,lng:s.lng,n:s.n,r:s.r})):P.f.filter(f=>f.t===type);
+  let best=null;const list=type==='signal'?P.sig.filter(s=>s.q>0).map(s=>({lat:s.lat,lng:s.lng,n:s.n,r:s.r})).concat(hostsOf(pk).filter(h=>h.svc.wifi&&h.svc.wifi.open).map(h=>({lat:h.lat,lng:h.lng,n:h.name}))):P.f.filter(f=>f.t===type);
   for(const f of list){const m=dist(o.lat,o.lng,f.lat,f.lng);if(!best||m<best.m)best={f,m,b:bearing(o.lat,o.lng,f.lat,f.lng)};}return best;}
 
 /* ---------- PARKS view: the facilities map ---------- */
-const cur={park:'kolsai',sel:null,layers:{toilet:1,bin:1,water:1,aid:1,ranger:1,parking:1,signal:1},mode:null,photo:null,pack:null,office:'kolsai'};
+const cur={park:'kolsai',sel:null,layers:{toilet:1,bin:1,water:1,aid:1,ranger:1,parking:1,signal:1,host:1},mode:null,photo:null,pack:null,office:'kolsai'};
 const pmap={m:null,g:null,me:null,park:null};
 function openParks(pk,fromHistory){
   if(pk&&PARKS[pk])cur.park=pk;cur.sel=null;cur.mode=null;
@@ -387,18 +390,19 @@ function renderParks(){
   $('#pkTabs').innerHTML=Object.keys(PARKS).map(k=>`<button class="chip" role="tab" data-pk="${k}" aria-selected="${k===cur.park}" aria-pressed="${k===cur.park}">${esc(PARKS[k].short)}</button>`).join('');
   $('#pkName').textContent=P.name;
   $('#pkFacts').innerHTML=`<div class="pk-fact">${ico('water',20)}<p>${esc(P.water)}</p></div><div class="pk-fact">${ico('signal',20)}<p>${esc(P.signal)}</p></div>`;
-  $('#pkLegend').innerHTML=['toilet','bin','water','aid','ranger','parking','signal'].map(k=>`<button class="pk-lg pk-${k}" data-layer="${k}" aria-pressed="${!!cur.layers[k]}"><span class="pk-lgi">${ico(k,16)}</span><span>${k==='signal'?'Signal zones':FT[k]}</span></button>`).join('');
+  $('#pkLegend').innerHTML=['host','toilet','bin','water','aid','ranger','parking','signal'].map(k=>`<button class="pk-lg pk-${k}" data-layer="${k}" aria-pressed="${!!cur.layers[k]}"><span class="pk-lgi">${ico(k,16)}</span><span>${k==='signal'?'Signal zones':k==='host'?'Local hosts':FT[k]}</span></button>`).join('');
   $('#pkPack').innerHTML=packed?`<a class="btn btn-line sm" href="#pack-${P.tour}" data-pack="${P.tour}">✓ <span>Saved for offline · open</span></a>`:`<button class="btn btn-gold sm" data-savepack="${P.tour}">${ico('signal',16)} <span>Save this park for offline</span></button>`;
   $('#pkTour').innerHTML=t?`<button class="btn btn-line sm" data-tour="${t.id}"><span>Trip:</span> <span>${esc(t.name)}</span></button>`:'';
   paintNet();renderPanel();renderOutbox();
-  const rb=$('#pkRelay');if(rb)rb.innerHTML=relayCard(true)+`<a class="btn btn-line sm pk-cklink" href="#pack-${P.tour}" data-pack="${P.tour}">${ico('ranger',14)} <span>Safety check-in for this park</span></a>`;
+  const rb=$('#pkRelay');if(rb)rb.innerHTML=passesCard(cur.park,true)+relayCard(true)+`<a class="btn btn-line sm pk-cklink" href="#pack-${P.tour}" data-pack="${P.tour}">${ico('ranger',14)} <span>Safety check-in for this park</span></a><a class="btn btn-line sm pk-cklink" href="#host-new" data-hostnew>${ico('host',14)} <span>Are you a host near this park? Add your place</span></a>`;
   const useMap=window.L&&online();
   $('#pkMapWrap').classList.toggle('pk-offline',!useMap);
   $('#pkOffNote').hidden=useMap;
   if(useMap){$('#pkPlan').hidden=true;$('#pkMap').hidden=false;drawMap();}
   else{$('#pkMap').hidden=true;$('#pkPlan').hidden=false;drawPlan();}
 }
-function drawPlan(){const {svg}=parkSvg(cur.park,{me:nearPark(cur.park)?me:null,crowd:srv().filter(r=>r.park===cur.park&&(r.kind==='nosig'||r.kind==='sigok'))});$('#pkPlan').innerHTML=svg;
+function drawPlan(){const {svg}=parkSvg(cur.park,{hosts:cur.layers.host?hostsOf(cur.park):[],me:nearPark(cur.park)?me:null,crowd:srv().filter(r=>r.park===cur.park&&(r.kind==='nosig'||r.kind==='sigok'))});$('#pkPlan').innerHTML=svg;
+  $('#pkPlan').querySelectorAll('.pk-svgh').forEach(g=>{g.setAttribute('tabindex','0');g.setAttribute('role','button');g.onclick=()=>selectHost(g.dataset.hostid);});
   $('#pkPlan').querySelectorAll('.pk-svgf').forEach((g,i)=>{const f=PARKS[cur.park].f[i];g.setAttribute('tabindex','0');g.setAttribute('role','button');g.setAttribute('aria-label',tx(f.n));g.onclick=()=>select(f.id);g.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();select(f.id);}};});}
 function mkIcon(f,s){return L.divIcon({className:'',html:`<span class="pk-mk pk-${f.t} pk-st-${s}${cur.sel===f.id?' sel':''}">${ico(f.t,18)}</span>`,iconSize:[34,34],iconAnchor:[17,17]});}
 function drawMap(){
@@ -416,11 +420,13 @@ function drawMap(){
   const all=srv().concat(outbox());
   P.f.forEach(f=>{if(!cur.layers[f.t])return;const s=fstat(cur.park,f.id,all).s;
     L.marker([f.lat,f.lng],{icon:mkIcon(f,s),title:tx(f.n),keyboard:true,riseOnHover:true}).addTo(pmap.g).on('click',()=>select(f.id));});
+  if(cur.layers.host)hostsOf(cur.park).forEach(h=>L.marker([h.lat,h.lng],{icon:L.divIcon({className:'',html:`<span class="pk-mk pk-host${cur.selHost===h.id?' sel':''}${h.verified?'':' new'}">${ico('host',18)}</span>`,iconSize:[34,34],iconAnchor:[17,17]}),title:tx(h.name),keyboard:true,riseOnHover:true}).addTo(pmap.g).on('click',()=>selectHost(h.id)));
   if(cur.mode==='spot'&&cur.spot)L.marker([cur.spot.lat,cur.spot.lng],{icon:L.divIcon({className:'',html:'<span class="pk-pin" aria-hidden="true"></span>',iconSize:[26,34],iconAnchor:[13,32]}),draggable:true}).addTo(pmap.g).on('dragend',e=>{const p=e.target.getLatLng();cur.spot={lat:p.lat,lng:p.lng};});
   if(me&&nearPark(cur.park))pmap.me.setLatLng([me.lat,me.lng]).addTo(pmap.m);
   setTimeout(()=>pmap.m.invalidateSize(),60);
 }
-function select(fid){cur.sel=fid;cur.mode=null;cur.photo=null;renderPanel();if(!$('#pkMap').hidden)drawMap();else drawPlan();
+function selectHost(id){cur.selHost=id;cur.sel=null;cur.mode=null;renderPanel();if(!$('#pkMap').hidden)drawMap();else drawPlan();if(window.innerWidth<860)$('#pkPanel').scrollIntoView({behavior:'smooth',block:'nearest'});}
+function select(fid){cur.sel=fid;cur.selHost=null;cur.mode=null;cur.photo=null;renderPanel();if(!$('#pkMap').hidden)drawMap();else drawPlan();
   const p=$('#pkPanel');if(window.innerWidth<860)p.scrollIntoView({behavior:'smooth',block:'nearest'});}
 function renderPanel(){
   const P=PARKS[cur.park],box=$('#pkPanel');
@@ -431,11 +437,12 @@ function renderPanel(){
      ${extras()}<button class="btn btn-line sm" data-cancel>Cancel</button>`;
     return;
   }
+  if(cur.selHost&&hostById(cur.selHost)){box.innerHTML=hostCard(hostById(cur.selHost),nearPark(cur.park)?me:null);return;}
   if(!cur.sel){
     const all=srv().concat(outbox());const issues=P.f.map(f=>({f,s:fstat(cur.park,f.id,all)})).filter(x=>x.s.s==='bad'||x.s.s==='warn');
     const near=['toilet','water','signal'].map(tp=>{const n=nearest(cur.park,tp,nearPark(cur.park)?me:null);return n?`<li>${ico(tp,16)} <span>${tp==='signal'?'Nearest signal':tp==='toilet'?'Nearest toilet':'Nearest water'}</span>: <b translate="no">${fmtDist(n.m)}</b> ${N(dirName(n.b))} <small class="muted">${esc(n.f.n)}</small></li>`:`<li>${ico(tp,16)} <span>${tp==='water'?'No drinking water in this park':'No signal zone in this park'}</span></li>`;}).join('');
     box.innerHTML=`<div class="pk-ph"><span class="pk-mk pk-ranger">${ico('ranger',18)}</span><div><b>Tap an icon on the map</b><small class="muted">See if it works now and report a problem in one tap.</small></div></div>
-     <ul class="pk-near">${near}</ul><p class="src pk-from">${nearPark(cur.park)?'Distances from your GPS position.':'Distances from the entrance. Turn on location in the park to measure from where you are.'}</p>
+     <ul class="pk-near">${near}${hostNearLines(cur.park,nearPark(cur.park)?me:null)}</ul><p class="src pk-from">${nearPark(cur.park)?'Distances from your GPS position.':'Distances from the entrance. Turn on location in the park to measure from where you are.'}</p>
      <div class="pk-acts"><button class="btn btn-gold sm" data-spot>${ico('spot',14)} <span>Report a spot: litter, no signal</span></button><button class="btn btn-line sm" data-gps>Use my location</button></div>
      ${issues.length?`<h4 class="pk-h4">Problems visitors reported</h4><ul class="pk-issues">${issues.map(x=>`<li><button data-sel="${x.f.id}"><span class="pk-mk sm pk-${x.f.t} pk-st-${x.s.s}">${ico(x.f.t,14)}</span><span><b>${esc(x.f.n)}</b><br>${fstatLine(x.s)}</span></button></li>`).join('')}</ul>`:'<p class="muted">No open problems right now.</p>'}`;
     return;
@@ -496,7 +503,7 @@ function qrSvg(text){try{const q=qrcode(0,'M');q.addData(text);q.make();return q
 function renderPack(tid,soft){
   const t=tourOf(tid),pk=PARK_OF[tid],P=pk&&PARKS[pk],pack=load(PACKS,{})[tid],code=(pack&&pack.code)||null;
   const g=GUIDES.find(x=>x.tours.includes(tid));
-  const plan=P?parkSvg(pk,{me:nearPark(pk)?me:null}):null;
+  const plan=P?parkSvg(pk,{hosts:hostsOf(pk),me:nearPark(pk)?me:null}):null;
   const near=P?['toilet','water','signal','ranger'].map(tp=>{const n=nearest(pk,tp,nearPark(pk)?me:null);return n?`<li>${ico(tp,16)} <span>${tp==='signal'?'Nearest signal':tp==='toilet'?'Nearest toilet':tp==='water'?'Nearest water':'Nearest ranger'}</span>: <b translate="no">${fmtDist(n.m)}</b> ${N(dirName(n.b))}</li>`:'';}).join(''):'';
   const smsBody=me?`SOS. Samruk Travel group. My location: ${me.lat.toFixed(5)}, ${me.lng.toFixed(5)} https://maps.google.com/?q=${me.lat.toFixed(5)},${me.lng.toFixed(5)}`:'';
   const html=`
@@ -518,10 +525,11 @@ function renderPack(tid,soft){
       ${g?`<div class="pk-contact"><span class="ava" style="background:${g.c}">${esc(g.n[0])}</span><div><b>${esc(g.n)}</b><small>Your guide · WhatsApp +7 700 000 00 00 (sample)</small></div></div>`:''}
       ${P?`<div class="pk-contact"><span class="ava pk-rng">${ico('ranger',16)}</span><div><b>${esc(P.f.find(f=>f.t==='ranger').n)}</b><small>Park rangers · +7 700 000 00 01 (sample)</small></div></div>`:''}</section>
     ${relayCard()}
+    ${P?passesCard(pk):''}
     ${P?`<section class="pk-card pk-wide"><div class="pk-planhead"><h3><span>Park plan:</span> <span>${esc(P.short)}</span></h3><a class="btn btn-line sm" href="#parks-${pk}" data-openpark="${pk}">Report a problem</a></div>
       ${plan.svg}
       <div class="pk-legend-s">${['toilet','bin','water','aid','ranger'].map(k=>`<span>${ico(k,14)} ${esc(FT[k])}</span>`).join('')}<span><i class="pk-sw g"></i>Good signal</span><span><i class="pk-sw w"></i>Weak signal</span><span><i class="pk-sw n"></i>No signal</span></div>
-      <ul class="pk-near">${near}</ul><p class="src">${nearPark(pk)?'Distances from your GPS position.':'Distances from the entrance. Your position appears on the plan when you are in the park.'} Schematic plan: positions of facilities are approximate.</p>
+      <ul class="pk-near">${near}${hostNearLines(pk,nearPark(pk)?me:null)}</ul><p class="src">${nearPark(pk)?'Distances from your GPS position.':'Distances from the entrance. Your position appears on the plan when you are in the park.'} Schematic plan: positions of facilities are approximate.</p>
       <div class="pk-facts2"><div class="pk-fact">${ico('water',20)}<p>${esc(P.water)}</p></div><div class="pk-fact">${ico('signal',20)}<p>${esc(P.signal)}</p></div></div></section>`:''}
     <section class="pk-card"><h3>Day by day</h3><div class="days">${t.plan.map(([d,x])=>`<div class="day"><b>${esc(d)}</b><p>${esc(x)}</p></div>`).join('')}</div></section>
     <section class="pk-card"><h3>Leave no trace</h3><ul class="checklist pk-lnt">
@@ -569,7 +577,7 @@ function relayCard(compact){
     ${carried?`<p class="src">${N(LL(`You carry ${carried} item${carried>1?'s':''} for other travelers.`,`您正在为其他游客携带${carried}条数据。`,`Sie tragen ${carried} Einträge für andere Reisende.`,`Вы везёте данные других туристов: ${carried}.`,`Басқа саяхатшылардың деректерін алып жүрсіз: ${carried}.`))}</p>`:''}</section>`;
 }
 /* modal: show my relay QR, or scan someone else's */
-let scanStop=null;
+let scanStop=null,scanHandler=null;
 function modal(html){let m=$('#pkModal');if(!m){m=document.createElement('div');m.id='pkModal';m.className='modal pk-modal';m.setAttribute('role','dialog');m.setAttribute('aria-modal','true');document.body.appendChild(m);
     m.addEventListener('click',e=>{if(e.target===m||e.target.closest('[data-mclose]'))closeModal();});}
   m.innerHTML=`<div class="modal-box pk-mbox">${html}<button class="btn btn-line sm" data-mclose>Close</button></div>`;m.hidden=false;}
@@ -586,8 +594,9 @@ function showRelay(){
 let jsqrP=null;function loadJsQR(){if(window.jsQR)return Promise.resolve();if(!jsqrP)jsqrP=new Promise((res,rej)=>{const sc=document.createElement('script');sc.src='assets/parks/jsQR.js';sc.onload=res;sc.onerror=()=>{jsqrP=null;sc.remove();rej();};document.head.appendChild(sc);});return jsqrP;}
 function relayGot(text){const r=relayTake(text);if(!r){pkToast(N(LL('This QR is not a Samruk Travel relay code.','这不是 Samruk Travel 接力二维码。','Das ist kein Samruk-Travel-Staffelcode.','Это не QR-код эстафеты Samruk Travel.','Бұл Samruk Travel эстафета QR-коды емес.')));return false;}
   closeModal();pkToast(`✓ ${N(LL(`Received ${r.n} report${r.n===1?'':'s'}${r.c?' and a location':''}. They go out when you have signal.`,`已接收${r.n}条反馈${r.c?'和一个位置':''}，有信号时会发送。`,`${r.n} Meldung${r.n===1?'':'en'}${r.c?' und ein Standort':''} empfangen. Sie gehen raus, sobald Sie Netz haben.`,`Получено отметок: ${r.n}${r.c?' и точка':''}. Отправятся, когда появится связь.`,`Алынды: ${r.n} белгі${r.c?' және нүкте':''}. Байланыс пайда болғанда жіберіледі.`))}`);rerender();return true;}
-async function scanRelay(){
-  modal(`<h3>Scan a traveler's QR</h3><div class="pk-scan"><video id="pkVideo" playsinline muted></video><div class="pk-scanframe" aria-hidden="true"></div></div>
+async function scanRelay(handler,title){
+  scanHandler=handler||relayGot;
+  modal(`<h3>${esc(tx(title||"Scan a traveler's QR"))}</h3><div class="pk-scan"><video id="pkVideo" playsinline muted></video><div class="pk-scanframe" aria-hidden="true"></div></div>
     <p class="muted pk-small" id="pkScanMsg">Point the camera at the QR on the other phone.</p>
     <label class="btn btn-line sm">${ico('spot',14)} <span>Or take a photo of the QR</span><input type="file" accept="image/*" capture="environment" id="pkQrFile" class="vh"></label>`);
   try{await loadJsQR();}catch(e){$('#pkScanMsg').textContent=tx('The scanner did not load. Save the trip for offline first.');return;}
@@ -597,7 +606,7 @@ async function scanRelay(){
   const c=document.createElement('canvas'),g=c.getContext('2d',{willReadFrequently:true});let live=true,raf=0;
   scanStop=()=>{live=false;cancelAnimationFrame(raf);stream.getTracks().forEach(t=>t.stop());};
   const tick=()=>{if(!live)return;if(v.readyState>=2&&v.videoWidth){const k=Math.min(1,720/Math.max(v.videoWidth,v.videoHeight));c.width=Math.round(v.videoWidth*k);c.height=Math.round(v.videoHeight*k);g.drawImage(v,0,0,c.width,c.height);
-      const d=g.getImageData(0,0,c.width,c.height),r=jsQR(d.data,c.width,c.height,{inversionAttempts:'dontInvert'});if(r&&r.data&&relayGot(r.data))return;}
+      const d=g.getImageData(0,0,c.width,c.height),r=jsQR(d.data,c.width,c.height,{inversionAttempts:'dontInvert'});if(r&&r.data&&scanHandler(r.data))return;}
     raf=requestAnimationFrame(tick);};tick();
 }
 async function scanFile(file){
@@ -605,7 +614,7 @@ async function scanFile(file){
   const img=new Image(),url=URL.createObjectURL(file);await new Promise((r,j)=>{img.onload=r;img.onerror=j;img.src=url;}).catch(()=>{});
   const k=Math.min(1,1400/Math.max(img.width,img.height)),c=document.createElement('canvas');c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);
   const g=c.getContext('2d');g.drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);const r=jsQR(g.getImageData(0,0,c.width,c.height).data,c.width,c.height);
-  if(!r||!relayGot(r.data)){const m=$('#pkScanMsg');if(m)m.textContent=tx('No QR found in the photo. Try again closer.');}
+  if(!r||!(scanHandler||relayGot)(r.data)){const m=$('#pkScanMsg');if(m)m.textContent=tx('No QR found in the photo. Try again closer.');}
 }
 
 /* ---------- OFFICE view: the park administration panel ---------- */
@@ -615,6 +624,7 @@ function renderOffice(){
   const pk=cur.office,P=PARKS[pk],all=srv().filter(r=>r.park===pk),now=Date.now();
   $('#ofTabs').innerHTML=Object.keys(PARKS).map(k=>{const n=srv().filter(r=>r.park===k&&staffJob(r)&&r.status!=='done').length;return `<button class="chip" data-of="${k}" aria-pressed="${k===pk}">${esc(PARKS[k].short)} ${n?`<span class="pk-badge" translate="no">${n}</span>`:''}</button>`;}).join('');
   $('#ofName').textContent=P.name;$('#ofSample').hidden=false;
+  const oh=$('#ofHosts');if(oh)oh.innerHTML=hostsOfficeCard(pk);
   const open=all.filter(r=>staffJob(r)&&r.status!=='done');
   const wc=new Set(open.filter(r=>r.f&&facility(pk,r.f).t==='toilet').map(r=>r.f)).size,bins=new Set(open.filter(r=>r.kind==='full'||(r.f&&facility(pk,r.f).t==='bin'&&r.kind==='litter')).map(r=>r.f)).size;
   const ns=all.filter(r=>r.kind==='nosig'&&now-r.ts<7*24*H).length;
@@ -663,6 +673,7 @@ function renderOffice(){
     P.f.forEach(f=>L.circleMarker([f.lat,f.lng],{radius:4,color:'#5A6B7B',weight:1,fillOpacity:.6}).addTo(omap.g).bindTooltip(tx(f.n)));
     GP.forEach(g=>L.circle([g.lat,g.lng],{radius:60+g.n*20,color:'#7a7f87',weight:1,dashArray:'4 4',fillOpacity:.12,interactive:false}).addTo(omap.g));
     G.forEach(g=>L.circleMarker([g.lat,g.lng],{radius:8+Math.min(18,g.rs.length*3),color:g.sev>=3?'#C2453A':'#D99A1E',weight:2,fillOpacity:.35}).addTo(omap.g).bindTooltip(`${g.f?tx(g.f.n):tx('Spot on the trail')} · ${g.rs.length}`));
+    hostsOf(pk).forEach(h=>L.marker([h.lat,h.lng],{icon:L.divIcon({className:'',html:`<span class="pk-mk sm pk-host">${ico('host',14)}</span>`,iconSize:[26,26],iconAnchor:[13,13]})}).addTo(omap.g).bindTooltip(tx(h.name)));
     cks.filter(c=>c.last_lat!=null&&c.state!=='back').forEach(c=>L.marker([c.last_lat,c.last_lng],{icon:L.divIcon({className:'',html:`<span class="pk-person ${c.state}" aria-hidden="true">${esc((c.name||'?')[0])}</span>`,iconSize:[30,30],iconAnchor:[15,15]})}).addTo(omap.g).bindTooltip(`${c.name} · ${tx(c.state==='overdue'?'Overdue':'In the park')}`));
     setTimeout(()=>omap.m.invalidateSize(),60);
   }else{$('#ofMap').hidden=true;$('#ofPlan').hidden=false;$('#ofPlan').innerHTML=parkSvg(pk,{crowd:all.filter(r=>r.kind==='nosig')}).svg;}
@@ -675,8 +686,207 @@ function rerender(){
   if($('#view-parks')&&!$('#view-parks').hidden)renderParks();
   if($('#view-office')&&!$('#view-office').hidden)renderOffice();
   if($('#view-pack')&&!$('#view-pack').hidden&&cur.pack)renderPack(cur.pack);
+  if($('#view-host')&&!$('#view-host').hidden&&!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#hostBox input,#hostBox select')))renderHost();
   if($('#view-tour')&&!$('#view-tour').hidden&&st.tour)onTour(st.tour);
   paintHome();paintNet();
+}
+
+/* ---------- FACILITIES FROM LOCAL HOSTS ----------
+   Guesthouses and cafés next to a park open their toilet, shower, water, charging and Wi-Fi to day visitors
+   for a small fee. The park gets more facilities without new building, the hosts earn, and a host's Wi-Fi
+   is a place with signal. A visitor buys a pass while online; the pass is a QR that works with no signal,
+   and the host checks it on their own phone, also with no signal. Hosts and prices here are sample data. */
+const SVC={toilet:{l:'Toilet',p:200},shower:{l:'Shower',p:1000},water:{l:'Water refill, 1.5 L',p:300},charge:{l:'Phone charging, 1 h',p:500},wifi:{l:'Wi-Fi, 1 h',p:500},parking:{l:'Parking',p:1000},meal:{l:'Hot meal',p:2500}};
+Object.assign(ICO,{
+ host:'<path d="M3.5 11 12 4l8.5 7v9h-6v-5.5h-5V20h-6z" fill="currentColor"/>',
+ shower:'<path d="M5 20V8a4 4 0 0 1 4-4h2a4 4 0 0 1 4 4M11 8h8M13 11v2M16 11v2M19 11v2M14 15v2M17 15v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+ charge:'<path d="M13 2 5 13.5h6L10 22l8-11.5h-6z" fill="currentColor"/>',
+ wifi:'<path d="M2.5 9a14 14 0 0 1 19 0M5.5 12.5a9.5 9.5 0 0 1 13 0M8.6 16a5 5 0 0 1 6.8 0" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="19.3" r="1.7" fill="currentColor"/>',
+ meal:'<path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M16 3c-2 1.5-3 4-3 7h3v11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
+});
+const SVC_ICO={toilet:'toilet',shower:'shower',water:'water',charge:'charge',wifi:'wifi',parking:'parking',meal:'meal'};
+const HOSTS0=[
+ {id:'h-kgate',park:'kolsai',name:'Yurt café at the lake gate',village:'Kolsai, lower lake',lat:42.99985,lng:78.33155,hours:'08:00–21:00',rating:4.6,s:{toilet:200,water:300,charge:500,meal:2500}},
+ {id:'h-saty1',park:'kolsai',name:'Saty Ui guesthouse',village:'Saty village',lat:43.0560,lng:78.4110,hours:'07:00–23:00',rating:4.8,s:{toilet:200,shower:1000,water:300,charge:500,wifi:500,parking:1000,meal:3000}},
+ {id:'h-saty2',park:'kolsai',name:'Aigul homestay',village:'Saty village',lat:43.0545,lng:78.4135,hours:'08:00–22:00',rating:4.7,s:{toilet:150,shower:800,wifi:400}},
+ {id:'h-ctop',park:'charyn',name:'Guesthouse by the top car park',village:'Charyn, top car park',lat:43.3542,lng:79.0716,hours:'08:00–20:00',rating:4.5,s:{toilet:200,water:300,charge:500,wifi:500}},
+ {id:'h-criv',park:'charyn',name:'Canyon yurt camp by the river',village:'Charyn, river',lat:43.3583,lng:79.0899,hours:'09:00–21:00',rating:4.4,s:{toilet:200,shower:1200,meal:2800}},
+ {id:'h-bal',park:'bigalmaty',name:'Tea house on the lake road',village:'Big Almaty gorge',lat:43.0598,lng:76.9816,hours:'09:00–19:00',rating:4.6,s:{toilet:200,water:300,meal:2200}},
+ {id:'h-bur1',park:'burabay',name:'Okzhetpes guesthouse',village:'Burabay village',lat:53.0823,lng:70.2928,hours:'07:00–23:00',rating:4.7,s:{toilet:150,shower:800,charge:400,wifi:400,parking:800}},
+ {id:'h-bur2',park:'burabay',name:'Blue Bay lakeside café',village:'Blue Bay',lat:53.0880,lng:70.2556,hours:'10:00–20:00',rating:4.3,s:{toilet:200,water:300,meal:2600}},
+ {id:'h-alt1',park:'altynemel',name:'Yurt camp at the dune car park',village:'Singing Dune',lat:43.8651,lng:78.5566,hours:'08:00–20:00',rating:4.5,s:{toilet:200,water:400,charge:500}},
+ {id:'h-alt2',park:'altynemel',name:'Basshi village guesthouse',village:'Basshi village',lat:44.1705,lng:78.7635,hours:'07:00–23:00',rating:4.8,s:{toilet:150,shower:900,wifi:400,meal:2800}}
+];
+const HST='sr_hosts_state',HMINE='sr_hosts_mine',HCACHE='sr_hosts_cache',PMINE='sr_passes_mine',PQ='sr_passes_q',PSRV='sr_passes_srv',PCACHE='sr_passes_cache',HME='sr_host_me';
+/* every host with its current services: {svc:{p:price, open:bool}} */
+function hosts(){
+  const st=load(HST,{}),srvRows=API?load(HCACHE,[]):[],byId={};
+  HOSTS0.forEach(h=>{byId[h.id]=Object.assign({sample:1,verified:1},h,{svc:Object.fromEntries(Object.entries(h.s).map(([k,p])=>[k,{p,open:true}]))});});
+  load(HMINE,[]).concat(srvRows).forEach(r=>{const b=byId[r.id]||{},clean=Object.fromEntries(Object.entries(r).filter(([k,v])=>v!==null&&v!==undefined));
+    byId[r.id]=Object.assign({},b,clean,{svc:Object.assign({},b.svc||{},r.svc||{}),verified:!!(b.verified||r.verified)});});
+  for(const id in st)if(byId[id])byId[id].svc=Object.assign({},byId[id].svc,st[id]);
+  return Object.values(byId);
+}
+const hostsOf=pk=>hosts().filter(h=>h.park===pk);
+const hostById=id=>hosts().find(h=>h.id===id);
+const kzt=n=>`${Math.round(n).toLocaleString('ru-RU')} ₸`;
+/* pass check: a short code from the pass fields. Demo only: a real version signs passes on the server with a secret key */
+function passSig(id,host,svc,price){let h=5381;for(const ch of `${id}|${host}|${svc}|${price}|samruk-demo`)h=((h*33)^ch.charCodeAt(0))>>>0;return h.toString(36).toUpperCase().padStart(6,'0').slice(0,6);}
+const passText=p=>`SRPASS1:${p.id}:${p.host}:${p.svc}:${p.price}:${p.sig}`;
+const passCode=p=>`${p.id.slice(-5).toUpperCase()}-${p.sig}`;
+function seedPasses(){
+  if(load('sr_pass_seed',0)===1)return;let s=11;const rnd=()=>(s=(s*16807)%2147483647)/2147483647;const now=Date.now(),out=[];
+  HOSTS0.forEach(h=>{const ks=Object.keys(h.s);for(let i=0;i<14+Math.floor(rnd()*22);i++){const svc=ks[Math.floor(rnd()*ks.length)],ts=Math.round(now-rnd()*7*24*H),id='q'+out.length+'x'+h.id.slice(2);
+    out.push({id,host:h.id,svc,price:h.s[svc],ts,sig:passSig(id,h.id,svc,h.s[svc]),status:rnd()<.85?'used':'paid',usedAt:ts+Math.round(rnd()*5*H),sample:1});}});
+  save(PSRV,out);save('sr_pass_seed',1);
+}
+/* all passes the office and the hosts know about */
+function passes(){const by={};(API?load(PCACHE,[]):[]).concat(load(PSRV,[]),load(PMINE,[])).forEach(p=>{const o=by[p.id];if(!o||(p.status==='used'&&o.status!=='used'))by[p.id]=Object.assign({},o||{},p);});return Object.values(by);}
+function pq(op){const q=load(PQ,[]);q.push(op);save(PQ,q);if(online())sync();}
+async function pushPasses(){
+  const q=load(PQ,[]);if(!q.length)return false;const done=[];
+  for(const op of q){
+    if(API){
+      if(op.op==='pass')await rest('passes?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=ignore-duplicates,return=minimal'},body:JSON.stringify([{id:op.p.id,host:op.p.host,svc:op.p.svc,price:op.p.price,ts:op.p.ts,sig:op.p.sig}])});
+      else if(op.op==='use')await rest(`passes?id=eq.${op.id}&status=eq.paid`,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({status:'used',used_at:op.at})});
+      else if(op.op==='host')await rest('hosts?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify([op.h])});
+    }else{
+      const s=load(PSRV,[]);
+      if(op.op==='pass'&&!s.some(x=>x.id===op.p.id))s.push(Object.assign({},op.p));
+      if(op.op==='use'){const x=s.find(x=>x.id===op.id);if(x&&x.status!=='used')Object.assign(x,{status:'used',usedAt:op.at});else if(!x&&op.p)s.push(Object.assign({},op.p,{status:'used',usedAt:op.at}));}
+      save(PSRV,s);
+    }
+    done.push(op);
+  }
+  save(PQ,load(PQ,[]).filter(x=>!done.includes(x)&&!done.some(d=>JSON.stringify(d)===JSON.stringify(x))));return true;
+}
+async function pullHosts(){if(!API||!online())return false;
+  const [hs,ps]=await Promise.all([rest('hosts?select=*'),rest(`passes?select=*&ts=gte.${Date.now()-8*24*H}&order=ts.desc&limit=2000`)]);
+  const next=JSON.stringify([hs,ps]);if(next===pullHosts.sig)return false;pullHosts.sig=next;
+  save(HCACHE,hs.map(r=>({id:r.id,park:r.park,name:r.name,village:r.village,lat:r.lat,lng:r.lng,hours:r.hours,phone:r.phone,svc:r.svc||{},verified:!!r.verified,rating:r.rating||null})));
+  save(PCACHE,ps.map(r=>({id:r.id,host:r.host,svc:r.svc,price:+r.price,ts:+r.ts,sig:r.sig,status:r.status,usedAt:r.used_at?+r.used_at:null})));return true;}
+function buyPass(hid,svc){
+  const h=hostById(hid);if(!h||!h.svc[svc]||!h.svc[svc].open)return;
+  if(!online()){pkToast(N(LL('Buying needs signal. Buy passes before you go, or pay the host in cash.','购买需要信号。请出发前购买，或现场向接待方付现金。','Kaufen braucht Netz. Kaufen Sie Pässe vorher oder zahlen Sie bar beim Gastgeber.','Для покупки нужна связь. Купите пропуск заранее или заплатите хозяину наличными.','Сатып алу үшін байланыс керек. Рұқсатты алдын ала алыңыз немесе қожайынға қолма-қол төлеңіз.')));return;}
+  const id=rid('p'),price=h.svc[svc].p,p={id,host:hid,svc,price,ts:Date.now(),sig:passSig(id,hid,svc,price),status:'paid',park:h.park};
+  const m=load(PMINE,[]);m.unshift(p);save(PMINE,m.slice(0,40));pq({op:'pass',p});showPass(id);rerender();
+}
+function myPasses(pk){return load(PMINE,[]).filter(p=>!pk||((hostById(p.host)||{}).park===pk));}
+function passState(p){const k=passes().find(x=>x.id===p.id);return k&&k.status==='used'?'used':p.status;}
+function showPass(id){
+  const p=load(PMINE,[]).find(x=>x.id===id);if(!p)return;const h=hostById(p.host)||{name:p.host};const used=passState(p)==='used';
+  modal(`<h3>${esc(SVC[p.svc].l)}</h3><p><b>${esc(h.name)}</b> · ${N(kzt(p.price))}</p>
+    <div class="pk-qr pk-qrbig${used?' used':''}" translate="no">${qrSvg(passText(p))}</div>
+    <p translate="no"><b>${passCode(p)}</b></p>
+    <p>${used?'<span class="pk-st">Used</span>':'<span class="pk-st pk-st-ok">Paid · not used yet</span>'}</p>
+    <p class="muted pk-small">Show this QR to the host. It opens with no signal, and the host checks it with no signal too.</p>`);
+}
+function hostCard(h,from){
+  const P=PARKS[h.park],o=from||{lat:P.f[0].lat,lng:P.f[0].lng},m=dist(o.lat,o.lng,h.lat,h.lng),mineP=myPasses().filter(p=>p.host===h.id&&passState(p)!=='used');
+  return `<div class="pk-ph"><span class="pk-mk pk-host">${ico('host',18)}</span><div><b>${esc(h.name)}</b><small class="muted"><span>${esc(h.village||'')}</span> · ${N(fmtDist(m)+' '+dirName(bearing(o.lat,o.lng,h.lat,h.lng)))}</small></div><button class="pk-x" data-close aria-label="${esc(tx('Close'))}">×</button></div>
+   <p class="pk-now">${h.verified?'<span class="pk-st pk-st-ok">Checked by the park</span>':'<span class="pk-st pk-st-warn">New, not checked yet</span>'} ${h.rating?`<span class="stars" translate="no">★ ${h.rating}</span>`:''} <span class="muted">· ${N(esc(h.hours||''))}</span></p>
+   <h4 class="pk-h4">Facilities for visitors</h4>
+   <ul class="pk-svcs">${Object.entries(h.svc).map(([k,v])=>`<li class="${v.open?'':'off'}"><span class="pk-svci">${ico(SVC_ICO[k],16)}</span><span class="pk-svcn">${esc(SVC[k].l)}</span><b translate="no">${kzt(v.p)}</b>${v.open?`<button class="btn btn-gold sm" data-buy="${h.id}|${k}">Buy pass</button>`:'<span class="pk-st">Closed now</span>'}</li>`).join('')}</ul>
+   ${mineP.length?`<div class="pk-acts">${mineP.map(p=>`<button class="btn btn-line sm" data-showpass="${p.id}">${ico(SVC_ICO[p.svc],14)} <span>Show my pass</span></button>`).join('')}</div>`:''}
+   <p class="src">Pay by card or Kaspi while you have signal (demo: nothing is charged), or pay the host in cash. Sample host for the prototype.</p>`;
+}
+function passesCard(pk,compact){
+  const ps=myPasses(pk);if(!ps.length)return '';
+  return `<section class="${compact?'pk-panel':'pk-card'} pk-mypass"><h3 class="${compact?'pk-h4':''}">Your passes</h3><ul class="pk-rec">${ps.slice(0,6).map(p=>{const h=hostById(p.host)||{name:p.host};const used=passState(p)==='used';
+    return `<li><button class="pk-passrow" data-showpass="${p.id}"><span class="pk-svci">${ico(SVC_ICO[p.svc],16)}</span><span><b>${esc(SVC[p.svc].l)}</b><br><small class="muted">${esc(h.name)}</small></span>${used?'<span class="pk-st">Used</span>':'<span class="pk-st pk-st-ok">Ready</span>'}</button></li>`;}).join('')}</ul>
+    <p class="src">Passes open with no signal.</p></section>`;
+}
+
+/* nearest paid facilities at hosts, for the "nearest" lists */
+function hostNearLines(pk,from){const P=PARKS[pk],o=from||{lat:P.f[0].lat,lng:P.f[0].lng};
+  return ['toilet','shower','wifi'].map(k=>{let best=null;hostsOf(pk).forEach(h=>{const v=h.svc[k];if(!v||!v.open)return;const m=dist(o.lat,o.lng,h.lat,h.lng);if(!best||m<best.m)best={h,m,v};});
+    return best?`<li class="pk-hostline">${ico(SVC_ICO[k],16)} <span>${k==='toilet'?'Toilet at a local host':k==='shower'?'Shower at a local host':'Wi-Fi at a local host'}</span>: <b translate="no">${fmtDist(best.m)}</b> ${N('· '+kzt(best.v.p))} <button class="pk-linkbtn" data-hostsel="${best.h.id}">${esc(best.h.name)}</button></li>`:'';}).join('');}
+/* office: how much hosts add to the park */
+function hostsOfficeCard(pk){
+  const hs=hostsOf(pk),ps=passes().filter(p=>hs.some(h=>h.id===p.host)&&Date.now()-p.ts<7*24*H);
+  const cnt=k=>hs.filter(h=>h.svc[k]&&h.svc[k].open).length;
+  return `<div class="pk-kpis pk-kpis4">${[[cnt('toilet'),'Extra toilets from hosts'],[cnt('shower'),'Showers'],[cnt('wifi'),'Wi-Fi points with signal'],[ps.filter(p=>p.status==='used').length,'Visitors served, 7 days']].map(([n,l])=>`<div class="pk-kpi"><b class="num" translate="no">${n}</b><span>${esc(l)}</span></div>`).join('')}</div>
+   <ul class="pk-cklist">${hs.map(h=>`<li class="pk-ckrow"><span class="pk-mk sm pk-host">${ico('host',14)}</span><div><b>${esc(h.name)}</b> <small class="muted">${esc(h.village||'')}</small><br><small>${Object.entries(h.svc).filter(([k,v])=>v.open).map(([k])=>`<span>${esc(SVC[k].l)}</span>`).join(', ')}</small></div>
+     ${h.verified?'<span class="pk-st pk-st-ok">Checked by the park</span>':`<button class="btn btn-gold sm" data-hverify="${h.id}">Mark as checked</button>`}</li>`).join('')}</ul>
+   <p class="muted pk-small"><span>Income for hosts, 7 days:</span> ${N(kzt(ps.reduce((s,p)=>s+p.price,0)))}</p>`;
+}
+/* ---------- HOST CABINET: what a guesthouse owner sees on their phone ---------- */
+const hcur={id:null,adding:false,pin:null};const hmap={m:null,g:null};
+function openHost(id,fromHistory){const hs=hosts();hcur.id=(id&&hs.some(h=>h.id===id))?id:(load(HME,null)||HOSTS0[1].id);hcur.adding=id==='new';
+  show('host');markNav('');renderHost();if(!fromHistory)push({view:'host',host:hcur.adding?'new':hcur.id});loadJsQR().catch(()=>{});}
+function renderHost(){
+  const box=$('#hostBox');if(!box)return;
+  if(hcur.adding){renderHostAdd(box);return;}
+  const h=hostById(hcur.id);if(!h){hcur.adding=true;renderHostAdd(box);return;}
+  save(HME,h.id);
+  const now=Date.now(),ps=passes().filter(p=>p.host===h.id),d0=new Date();d0.setHours(0,0,0,0);
+  const today=ps.filter(p=>p.ts>=d0.getTime()),week=ps.filter(p=>now-p.ts<7*24*H),used=ps.filter(p=>p.status==='used'&&p.usedAt>=d0.getTime());
+  const days=[...Array(7)].map((_,i)=>{const a=new Date(now-(6-i)*24*H);a.setHours(0,0,0,0);const b=a.getTime()+24*H;return {d:a,v:ps.filter(p=>p.ts>=a.getTime()&&p.ts<b).reduce((s,p)=>s+p.price,0)};});const mx=Math.max(1,...days.map(x=>x.v));
+  const bySvc={};week.forEach(p=>bySvc[p.svc]=(bySvc[p.svc]||0)+1);
+  box.innerHTML=`
+  <div class="pk-top"><div><div class="eyebrow">Host cabinet <span class="demo-tag">Demo</span></div><h1>${esc(h.name)}</h1><p class="muted"><span>${esc(h.village||'')}</span> · <span>${esc(PARKS[h.park].short)}</span> ${h.verified?'· <span class="pk-st pk-st-ok">Checked by the park</span>':'· <span class="pk-st pk-st-warn">New, not checked yet</span>'}</p></div>
+    <div class="pk-topr"><span class="pk-mode"></span><span class="pk-net"></span><label class="vh" for="hostPick">Your place</label><select id="hostPick" class="pk-select">${hosts().map(x=>`<option value="${x.id}" ${x.id===h.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select><button class="btn btn-line sm" data-hostnew>+ <span>Add your place</span></button></div></div>
+  <div class="pk-kpis">${[[today.length,'Passes sold today'],[kzt(today.reduce((s,p)=>s+p.price,0)),'Income today'],[kzt(week.reduce((s,p)=>s+p.price,0)),'Income, 7 days'],[used.length,'Checked in today'],[Object.values(h.svc).filter(v=>v.open).length+' / '+Object.keys(h.svc).length,'Facilities open now'],[h.rating||'–','Rating']].map(([n,l])=>`<div class="pk-kpi"><b class="num" translate="no">${n}</b><span>${esc(l)}</span></div>`).join('')}</div>
+  <div class="pk-ofgrid pk-hgrid">
+    <section class="pk-card pk-wide"><h3>Facilities and prices</h3><p class="muted pk-small">Visitors see these on the park map. Close a facility when it is busy or being cleaned.</p>
+      <ul class="pk-svcs pk-svcedit">${Object.keys(SVC).map(k=>{const v=h.svc[k];return `<li class="${v&&v.open?'':'off'}"><span class="pk-svci">${ico(SVC_ICO[k],16)}</span><span class="pk-svcn">${esc(SVC[k].l)}</span>
+        ${v?`<label class="pk-price"><input type="number" min="0" step="50" value="${v.p}" data-hprice="${k}" aria-label="${esc(tx('Price'))}"> ₸</label><button class="btn ${v.open?'btn-gold':'btn-line'} sm" data-hopen="${k}" aria-pressed="${v.open}">${v.open?'Open':'Closed'}</button>`
+          :`<button class="btn btn-line sm" data-hadd="${k}">+ <span>Offer this</span></button>`}</li>`;}).join('')}</ul></section>
+    <section class="pk-card"><h3>Check a pass</h3><p class="muted pk-small">Scan the visitor's QR or type the code under it. Works with no signal.</p>
+      <div class="pk-acts"><button class="btn btn-gold sm" data-hscan>Scan QR</button></div>
+      <form class="pk-codeform" data-hcode><input id="hostCode" placeholder="ABCDE-123456" autocomplete="off" aria-label="${esc(tx('Pass code'))}"><button class="btn btn-line sm" type="submit">Check</button></form>
+      <div id="hostCheck" aria-live="polite"></div></section>
+    <section class="pk-card"><h3>Income, last 7 days</h3><div class="pk-days">${days.map(x=>`<div class="pk-day"><i style="--h:${(x.v/mx*100).toFixed(0)}%"></i><b class="num" translate="no">${x.v?Math.round(x.v/1000)+'k':'0'}</b><span translate="no">${x.d.toLocaleDateString(loc(),{weekday:'short'})}</span></div>`).join('')}</div>
+      <div class="pk-bars">${Object.entries(bySvc).sort((a,b)=>b[1]-a[1]).map(([k,n])=>`<div class="pk-bar"><span>${esc(SVC[k].l)}</span><i style="--w:${(n/Math.max(...Object.values(bySvc))*100).toFixed(0)}%" class="good"></i><b class="num" translate="no">${n}</b></div>`).join('')}</div></section>
+    <section class="pk-card"><h3>Recent passes</h3><ul class="pk-rec">${ps.sort((a,b)=>b.ts-a.ts).slice(0,7).map(p=>`<li><span>${esc(SVC[p.svc].l)}</span> <span class="muted">· ${N(kzt(p.price))} · ${N(ago(p.ts))}</span> ${p.status==='used'?'<span class="pk-st pk-st-ok">Checked in</span>':'<span class="pk-st">Paid</span>'}${p.sample?' <span class="pk-tag demo">Sample data</span>':''}</li>`).join('')||'<li class="muted">No passes yet.</li>'}</ul></section>
+  </div>
+  <p class="src pk-note">Prototype: hosts, prices and passes are sample data, and nothing is charged. The pass check here is a demo; a real version signs passes on the server, pays the host through Kaspi or a card, and the park checks every new place before it is marked "Checked by the park".</p>`;
+  paintNet();
+}
+function renderHostAdd(box){
+  const pk=hcur.pk||'kolsai';
+  box.innerHTML=`<div class="pk-top"><div><div class="eyebrow">Host cabinet <span class="demo-tag">Demo</span></div><h1>Add your place</h1><p class="muted">Guesthouse, café or shop near a park: open your toilet, shower, water or Wi-Fi to day visitors and earn from it.</p></div>
+    <div class="pk-topr">${hosts().length?'<button class="btn btn-line sm" data-hostback>← <span>Back to my cabinet</span></button>':''}</div></div>
+  <form class="pk-card pk-hostform" data-hostform>
+    <div class="grid2"><div class="field"><label for="hfName">Name of the place</label><input id="hfName" required maxlength="60" placeholder="For example: Altyn Saty guesthouse"></div>
+    <div class="field"><label for="hfPark">Park nearby</label><select id="hfPark">${Object.keys(PARKS).map(k=>`<option value="${k}" ${k===pk?'selected':''}>${esc(PARKS[k].short)}</option>`).join('')}</select></div>
+    <div class="field"><label for="hfVillage">Village or place</label><input id="hfVillage" maxlength="60"></div>
+    <div class="field"><label for="hfHours">Opening hours</label><input id="hfHours" maxlength="20" value="08:00–21:00"></div></div>
+    <fieldset class="pk-svcpick"><legend>What can visitors use?</legend>${Object.keys(SVC).map(k=>`<label><input type="checkbox" data-hfs="${k}" ${k==='toilet'?'checked':''}> ${ico(SVC_ICO[k],16)} <span>${esc(SVC[k].l)}</span> <input type="number" min="0" step="50" value="${SVC[k].p}" data-hfp="${k}" aria-label="${esc(tx('Price'))}"> ₸</label>`).join('')}</fieldset>
+    <div><b>Where is it?</b> <span class="muted pk-small">Tap the map, or use your GPS.</span> <button class="btn btn-line sm" type="button" data-hgps>Use my location</button></div>
+    <div class="map pk-map pk-hmap" id="hostMap" role="region" aria-label="${esc(tx('Map'))}"></div>
+    <p class="src" id="hfPin">${hcur.pin?`${hcur.pin.lat.toFixed(5)}, ${hcur.pin.lng.toFixed(5)}`:''}</p>
+    <button class="btn btn-gold" type="submit">Publish on the park map</button>
+    <p class="src">New places show "New, not checked yet" until the park office checks them.</p>
+  </form>`;
+  if(window.L){const P=PARKS[pk];if(hmap.m){hmap.m.remove();hmap.m=null;}
+    hmap.m=L.map('hostMap',{scrollWheelZoom:false}).setView(hcur.pin?[hcur.pin.lat,hcur.pin.lng]:P.c,13);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(hmap.m);
+    hmap.g=L.layerGroup().addTo(hmap.m);const pin=()=>{hmap.g.clearLayers();if(hcur.pin)L.marker([hcur.pin.lat,hcur.pin.lng],{icon:L.divIcon({className:'',html:`<span class="pk-mk pk-host">${ico('host',18)}</span>`,iconSize:[34,34],iconAnchor:[17,17]})}).addTo(hmap.g);const t=$('#hfPin');if(t)t.textContent=hcur.pin?`${hcur.pin.lat.toFixed(5)}, ${hcur.pin.lng.toFixed(5)}`:'';};
+    hmap.m.on('click',e=>{hcur.pin={lat:e.latlng.lat,lng:e.latlng.lng};pin();});pin();hmap.pinFn=pin;setTimeout(()=>hmap.m.invalidateSize(),80);}
+}
+function hostSave(h){
+  const st=load(HST,{});st[h.id]=h.svc;save(HST,st);
+  const row={id:h.id,park:h.park,name:h.name,village:h.village||null,lat:h.lat,lng:h.lng,hours:h.hours||null,svc:h.svc};
+  if(!h.sample){const m=load(HMINE,[]).filter(x=>x.id!==h.id);m.push(Object.assign({},row,{verified:!!h.verified}));save(HMINE,m);}
+  pq({op:'host',h:row});bc('change');
+}
+function checkPassText(text,quiet){
+  const h=hostById(hcur.id),out=$('#hostCheck');let m=/^SRPASS1:([a-z0-9]+):([a-z0-9-]+):(\w+):(\d+):([A-Z0-9]{6})$/.exec(String(text).trim()),p=null;
+  if(m)p={id:m[1],host:m[2],svc:m[3],price:+m[4],sig:m[5]};
+  else{const c=/^([A-Z0-9]{5})-([A-Z0-9]{6})$/i.exec(String(text).trim());if(c){const tail=c[1].toLowerCase(),sig=c[2].toUpperCase();
+    const known=passes().find(x=>x.id.slice(-5)===tail&&x.sig===sig&&x.host===h.id);if(known)p=Object.assign({},known);}}
+  const say=(ok,html)=>{if(out)out.innerHTML=`<div class="pk-check ${ok?'ok':'bad'}">${html}</div>`;pkToast(html);};
+  if(!p){say(false,`✕ <span>Not a valid pass</span>`);return false;}
+  if(p.host!==h.id){say(false,`✕ <span>This pass is for another place</span>`);return false;}
+  if(!SVC[p.svc]||passSig(p.id,p.host,p.svc,p.price)!==p.sig){say(false,`✕ <span>Not a valid pass</span>`);return false;}
+  const k=passes().find(x=>x.id===p.id);
+  if(k&&k.status==='used'){say(false,`✕ <span>Already used</span> ${N(hhmm(k.usedAt||k.ts))}`);return false;}
+  const at=Date.now(),s=load(PSRV,[]),x=s.find(y=>y.id===p.id);if(x)Object.assign(x,{status:'used',usedAt:at});else s.push(Object.assign({},p,{ts:at,status:'used',usedAt:at}));save(PSRV,s);
+  const mp=load(PMINE,[]),y=mp.find(z=>z.id===p.id);if(y){y.status='used';save(PMINE,mp);}
+  pq({op:'use',id:p.id,at,p});
+  say(true,`✓ <span>Valid pass</span>: <b>${esc(SVC[p.svc].l)}</b> · ${N(kzt(p.price))}`);
+  setTimeout(()=>{if(!$('#view-host').hidden)renderHost();},quiet?0:1600);return true;
 }
 
 /* ---------- hooks into the rest of the site ---------- */
@@ -696,6 +906,7 @@ function paintHome(){
 function apply(x){
   if(x.view==='parks')openParks(x.park,true);
   else if(x.view==='office')openOffice(x.park,true);
+  else if(x.view==='host')openHost(x.host,true);
   else if(x.view==='pack'){if(tourOf(x.tour))openPack(x.tour,true);else{show('home');}}
 }
 
@@ -706,7 +917,7 @@ document.addEventListener('click',async e=>{
   if(b=q('[data-layer]')){const k=b.dataset.layer;cur.layers[k]=!cur.layers[k];renderParks();return;}
   if(b=q('[data-kind]')){submit(b.dataset.kind);return;}
   if(b=q('[data-sel]')){select(b.dataset.sel);return;}
-  if(q('[data-close]')||q('[data-cancel]')){cur.sel=null;cur.mode=null;cur.spot=null;renderParks();return;}
+  if(q('[data-close]')||q('[data-cancel]')){cur.sel=null;cur.selHost=null;cur.mode=null;cur.spot=null;renderParks();return;}
   if(q('[data-spot]')){cur.sel=null;cur.mode='spot';cur.spot=nearPark(cur.park)?{lat:me.lat,lng:me.lng,gps:1}:(pmap.m&&!$('#pkMap').hidden?(c=>({lat:c.lat,lng:c.lng}))(pmap.m.getCenter()):null);
     if(!cur.spot){const P=PARKS[cur.park];cur.spot={lat:P.c[0],lng:P.c[1]};}renderParks();return;}
   if(q('[data-gps]')||q('[data-locate]')){locate(p=>{if(!p)pkToast(N(LL('Location is off or not allowed. Turn it on to see where you are.','定位未开启或未授权，请开启以查看您的位置。','Standort ist aus oder nicht erlaubt. Schalten Sie ihn ein, um zu sehen, wo Sie sind.','Геолокация выключена или запрещена. Включите её, чтобы видеть, где вы.','Геолокация өшірулі немесе рұқсат жоқ. Қай жерде екеніңізді көру үшін қосыңыз.')));else if(!nearPark(cur.park)&&!$('#view-parks').hidden)pkToast(N(LL('You are not in this park now, so distances are counted from the entrance.','您现在不在这个公园里，所以距离从入口算起。','Sie sind gerade nicht in diesem Park, daher zählen die Entfernungen ab dem Eingang.','Вы сейчас не в этом парке, поэтому расстояния считаются от входа.','Сіз қазір бұл саябақта емессіз, сондықтан қашықтық кіреберістен есептеледі.')));rerender();});return;}
@@ -722,12 +933,30 @@ document.addEventListener('click',async e=>{
   if(b=q('[data-done]')){setStatus(b.dataset.done.split(','),'done');pkToast(`✓ ${N(LL('Marked fixed. Visitors see it on the map.','已标记为已修复，游客会在地图上看到。','Als behoben markiert. Besucher sehen es auf der Karte.','Отмечено как исправленное. Посетители увидят это на карте.','Түзетілді деп белгіленді. Келушілер мұны картадан көреді.'))}`);return;}
   if(q('[data-csv]')){csv();return;}
   if(b=q('[data-relay]')){b.dataset.relay==='show'?showRelay():scanRelay();return;}
+  if(b=q('[data-buy]')){const [h,k]=b.dataset.buy.split('|');buyPass(h,k);return;}
+  if(b=q('[data-showpass]')){showPass(b.dataset.showpass);return;}
+  if(b=q('[data-hostsel]')){selectHost(b.dataset.hostsel);return;}
+  if(b=q('[data-hostnew]')){e.preventDefault();hcur.pk=cur.park;hcur.pin=null;openHost('new');return;}
+  if(q('[data-hostback]')){hcur.adding=false;openHost(load(HME,null));return;}
+  if(b=q('[data-hopen]')){const h=hostById(hcur.id);const k=b.dataset.hopen;h.svc[k].open=!h.svc[k].open;hostSave(h);renderHost();return;}
+  if(b=q('[data-hadd]')){const h=hostById(hcur.id);const k=b.dataset.hadd;h.svc[k]={p:SVC[k].p,open:true};hostSave(h);renderHost();return;}
+  if(q('[data-hscan]')){scanRelay(t=>{const ok=checkPassText(t);if(ok)closeModal();return ok;},'Scan the visitor\'s pass');return;}
+  if(q('[data-hgps]')){locate(p2=>{if(p2&&hmap.pinFn){hcur.pin={lat:p2.lat,lng:p2.lng};hmap.m.setView([p2.lat,p2.lng],15);hmap.pinFn();}});return;}
+  if(b=q('[data-hverify]')){const h=hostById(b.dataset.hverify);if(h){h.verified=true;if(h.sample){}else{const m=load(HMINE,[]);const x=m.find(y=>y.id===h.id);if(x)x.verified=true;save(HMINE,m);}pq({op:'host',h:{id:h.id,park:h.park,name:h.name,village:h.village||null,lat:h.lat,lng:h.lng,hours:h.hours||null,svc:h.svc,verified:true}});rerender();}return;}
   if(b=q('[data-ck]')){if(b.dataset.ck==='back'){ckBack();pkToast(`✓ ${N(LL('Welcome back! The alarm is off.','欢迎回来！警报已取消。','Willkommen zurück! Der Alarm ist aus.','С возвращением! Тревога отключена.','Қош келдіңіз! Дабыл өшірілді.'))}`);}
     else{const ck=myCk();if(ck){ck.due+=H;save(CK,ck);ckQueue({op:'start',id:ck.id,name:ck.name,contact:ck.contact,park:ck.park,tour:ck.tour,due:ck.due,lat:null,lng:null,ts:null});sync();}}rerender();return;}
   if(q('.pk-sim')){toggleSim();return;}
-  if(b=q('[data-goview]')){const v=b.dataset.goview;if(v==='parks')openParks();else if(v==='office')openOffice();return;}
+  if(b=q('[data-goview]')){const v=b.dataset.goview;if(v==='parks')openParks();else if(v==='office')openOffice();else if(v==='host')openHost();return;}
 });
-document.addEventListener('submit',e=>{const f=e.target.closest('[data-ckform]');if(!f)return;e.preventDefault();
+document.addEventListener('submit',e=>{
+  if(e.target.closest('[data-hcode]')){e.preventDefault();checkPassText($('#hostCode').value,false);return;}
+  const hf=e.target.closest('[data-hostform]');if(hf){e.preventDefault();
+    const name=$('#hfName').value.trim(),svc={};hf.querySelectorAll('[data-hfs]').forEach(c=>{if(c.checked){const k=c.dataset.hfs;svc[k]={p:Math.max(0,+hf.querySelector(`[data-hfp="${k}"]`).value||0),open:true};}});
+    if(!name||!Object.keys(svc).length||!hcur.pin){pkToast(N(LL('Add a name, at least one facility and the place on the map.','请填写名称、至少一项设施，并在地图上标出位置。','Geben Sie einen Namen, mindestens eine Einrichtung und den Ort auf der Karte an.','Укажите название, хотя бы одно удобство и место на карте.','Атауын, кемінде бір ыңғайлылықты және картадағы орнын көрсетіңіз.')));return;}
+    const h={id:rid('h'),park:$('#hfPark').value,name,village:$('#hfVillage').value.trim(),hours:$('#hfHours').value.trim(),lat:+hcur.pin.lat.toFixed(5),lng:+hcur.pin.lng.toFixed(5),svc,verified:false};
+    hostSave(h);save(HME,h.id);hcur.adding=false;hcur.id=h.id;replace({view:'host',host:h.id});renderHost();
+    pkToast(`✓ ${N(LL('Published. Visitors see your place on the park map.','已发布，游客可以在公园地图上看到您的地点。','Veröffentlicht. Besucher sehen Ihren Ort auf der Parkkarte.','Опубликовано. Посетители видят ваше место на карте парка.','Жарияланды. Келушілер сіздің орныңызды саябақ картасынан көреді.'))}`);return;}
+  const f=e.target.closest('[data-ckform]');if(!f)return;e.preventDefault();
   const name=$('#ckName').value.trim(),phone=$('#ckPhone').value.trim(),due=new Date($('#ckDue').value).getTime();
   if(!name||!/^\+?[0-9 ()-]{6,20}$/.test(phone)){pkToast(N(LL('Enter your name and a phone number for the SMS.','请填写姓名和接收短信的电话号码。','Geben Sie Ihren Namen und eine Telefonnummer für die SMS ein.','Введите имя и номер телефона для SMS.','Атыңызды және SMS үшін телефон нөмірін енгізіңіз.')));return;}
   if(!(due>Date.now()+5*6e4)){pkToast(N(LL('Pick a time later than now.','请选择晚于现在的时间。','Wählen Sie eine spätere Zeit.','Выберите время позже текущего.','Қазіргіден кейінгі уақытты таңдаңыз.')));return;}
@@ -737,6 +966,9 @@ document.addEventListener('submit',e=>{const f=e.target.closest('[data-ckform]')
   rerender();});
 document.addEventListener('change',async e=>{
   if(e.target.id==='pkQrFile'&&e.target.files[0]){scanFile(e.target.files[0]);return;}
+  if(e.target.id==='hostPick'){hcur.id=e.target.value;replace({view:'host',host:hcur.id});renderHost();return;}
+  if(e.target.id==='hfPark'){hcur.pk=e.target.value;if(hmap.m)hmap.m.setView(PARKS[hcur.pk].c,13);return;}
+  if(e.target.dataset&&e.target.dataset.hprice){const h=hostById(hcur.id),k=e.target.dataset.hprice;h.svc[k].p=Math.max(0,Math.round(+e.target.value||0));hostSave(h);pkToast(`✓ ${N(LL('Price saved','价格已保存','Preis gespeichert','Цена сохранена','Баға сақталды'))}`);return;}
   if(e.target.id==='pkPhoto'&&e.target.files[0]){try{cur.photo=await readPhoto(e.target.files[0]);}catch(x){cur.photo=null;}const n=$('#pkNote')&&$('#pkNote').value;renderPanel();const d=$('#pkPanel details');if(d)d.open=true;if(n&&$('#pkNote'))$('#pkNote').value=n;}
   if(e.target.dataset&&e.target.dataset.lnt!==undefined&&cur.pack){const k='sr_lnt_'+cur.pack,v=load(k,[]);v[+e.target.dataset.lnt]=e.target.checked;save(k,v);}
 });
@@ -748,8 +980,8 @@ if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)){
   window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 }
 
-seed();
-window.PK={apply,onTour,onBooked,openParks,openOffice,openPack,PARKS,sync,_k:K};
+seed();seedPasses();
+window.PK={apply,onTour,onBooked,openParks,openOffice,openPack,openHost,PARKS,sync,_k:K};
 paintHome();paintNet();sync();
 if(window.__pkInit){apply(window.__pkInit);window.__pkInit=null;}
 else if(st.tour&&!$('#view-tour').hidden)onTour(st.tour);

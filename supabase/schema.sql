@@ -96,6 +96,55 @@ grant execute on function public.checkin_start(text,text,text,text,text,bigint,d
 grant execute on function public.checkin_point(text,double precision,double precision,bigint,text) to anon, authenticated;
 grant execute on function public.checkin_back(text,bigint) to anon, authenticated;
 
+-- ---------- facilities from local hosts: guesthouses and cafés open toilets, showers, water, Wi-Fi ----------
+-- The site ships ten sample hosts in code; this table holds new places and every change of price or opening.
+create table if not exists public.hosts (
+  id       text primary key check (id ~ '^[a-z0-9-]{3,40}$'),
+  park     text not null check (park in ('kolsai','charyn','bigalmaty','burabay','altynemel')),
+  name     text not null check (char_length(name) between 2 and 60),
+  village  text check (char_length(village) <= 60),
+  lat      double precision not null check (lat between 35 and 56),
+  lng      double precision not null check (lng between 45 and 88),
+  hours    text check (char_length(hours) <= 20),
+  svc      jsonb not null default '{}'::jsonb,       -- {"toilet":{"p":200,"open":true}, ...}
+  verified boolean not null default false,           -- the park office checks new places
+  rating   numeric,
+  updated_at timestamptz not null default now()
+);
+alter table public.hosts enable row level security;
+drop policy if exists "hosts readable" on public.hosts;
+drop policy if exists "hosts write" on public.hosts;
+drop policy if exists "hosts update" on public.hosts;
+create policy "hosts readable" on public.hosts for select to anon, authenticated using (true);
+create policy "hosts write" on public.hosts for insert to anon, authenticated with check (true);
+create policy "hosts update" on public.hosts for update to anon, authenticated using (true) with check (true);
+grant select, insert, update on public.hosts to anon, authenticated;
+-- demo: anyone may edit a host and mark it checked. A real version gives hosts and rangers accounts.
+
+-- passes a visitor buys for one facility at one host; the host checks the QR, also offline
+create table if not exists public.passes (
+  id      text primary key check (id ~ '^[a-z0-9]{4,40}$'),
+  host    text not null,
+  svc     text not null check (svc in ('toilet','shower','water','charge','wifi','parking','meal')),
+  price   integer not null check (price between 0 and 100000),
+  ts      bigint not null,
+  sig     text not null,
+  status  text not null default 'paid' check (status in ('paid','used')),
+  used_at bigint
+);
+create index if not exists passes_host_ts on public.passes (host, ts desc);
+alter table public.passes enable row level security;
+drop policy if exists "passes readable" on public.passes;
+drop policy if exists "passes insert" on public.passes;
+drop policy if exists "passes use" on public.passes;
+create policy "passes readable" on public.passes for select to anon, authenticated using (true);
+create policy "passes insert" on public.passes for insert to anon, authenticated with check (status = 'paid' and used_at is null);
+create policy "passes use" on public.passes for update to anon, authenticated using (status = 'paid') with check (status = 'used');
+revoke update on public.passes from anon, authenticated;
+grant select, insert on public.passes to anon, authenticated;
+grant update (status, used_at) on public.passes to anon, authenticated;
+-- a pass can be used once: the update only matches rows that are still 'paid'
+
 -- ---------- SMS alarm (optional, needs a Twilio account) ----------
 -- 1) Deploy supabase/functions/overdue-alarm with the Supabase CLI and set its secrets:
 --      supabase functions deploy overdue-alarm
