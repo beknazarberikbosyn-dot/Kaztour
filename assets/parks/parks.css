@@ -206,3 +206,42 @@
   .pk-ofb{grid-column:1/-1;justify-content:flex-start}
   .pk-svgl{font-size:20px}
 }
+
+/* server mode badge */
+.pk-mode{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;padding:6px 12px;border-radius:999px;background:var(--surface-2);color:var(--muted);white-space:nowrap}
+.pk-mode.live{background:var(--sky-soft);color:var(--sky)}
+.pk-mode.live .pk-dot{animation:pkblink 2s infinite}
+.pk-mode.err{background:var(--pk-bad-bg);color:var(--pk-bad-ink)}
+.pk-mode:empty{display:none}
+.pk-tag.demo{border-style:dashed;color:var(--muted)}
+.pk-tag.live{border-color:var(--sky);color:var(--sky);font-weight:700}
+
+/* safety check-in */
+.pk-ck.over{border-color:var(--pk-none);box-shadow:0 0 0 3px color-mix(in srgb,var(--pk-none) 25%,transparent)}
+.pk-ckstate{margin:0;font-size:15px}
+.pk-ckform{display:grid;gap:10px}
+.pk-ckform input{box-sizing:border-box}
+.pk-gpsnote{margin:0}
+.pk-cklink{text-decoration:none;justify-self:start}
+.pk-cklist{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.pk-ckrow{display:flex;gap:10px;align-items:flex-start;background:var(--surface-2);border-radius:12px;padding:10px 12px;font-size:14px;line-height:1.45}
+.pk-ckrow.overdue{background:var(--pk-bad-bg)}
+.pk-ckrow .pk-st{flex:none;margin-top:1px}
+.pk-kpi.alarm{background:var(--pk-bad-bg);animation:pkpulse2 1.6s infinite}
+@keyframes pkpulse2{50%{box-shadow:0 0 0 4px color-mix(in srgb,var(--pk-none) 30%,transparent)}}
+.pk-person{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--pk-weak);color:#fff;font-weight:800;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35);box-sizing:border-box;font-size:13px}
+.pk-person.overdue{background:var(--pk-none);animation:pkpulse 1.4s infinite}
+
+/* relay */
+.pk-relay h3.pk-h4{margin:0}
+#pkRelay{display:grid;gap:12px}
+.pk-modal{z-index:1500}
+.pk-mbox{max-width:440px;display:grid;gap:12px;justify-items:center;text-align:center;padding:22px}
+.pk-mbox h3{margin:0}
+.pk-mbox p{margin:0}
+.pk-qrbig{width:min(320px,78vw)}
+.pk-scan{position:relative;width:min(340px,80vw);aspect-ratio:1;border-radius:16px;overflow:hidden;background:#000}
+.pk-scan video{width:100%;height:100%;object-fit:cover;display:block}
+.pk-scanframe{position:absolute;inset:14%;border:3px solid rgba(255,255,255,.9);border-radius:14px;box-shadow:0 0 0 999px rgba(0,0,0,.35)}
+.pk-mbox label.btn{position:relative}
+@media (prefers-reduced-motion:reduce){.pk-kpi.alarm,.pk-person.overdue,.pk-mode.live .pk-dot{animation:none}}

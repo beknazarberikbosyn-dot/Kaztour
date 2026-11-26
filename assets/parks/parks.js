@@ -108,21 +108,21 @@ const PHRASES=[
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const lang=()=>st.lang||'en';
-const LL=(en,zh,de)=>lang()==='zh'?zh:lang()==='de'?de:en;   // for text with numbers: rendered in place, not by the page translator
-const tx=s=>{const i=lang()==='zh'?0:lang()==='de'?1:-1;return i>=0&&I18N[s]?I18N[s][i]:s;}; // for attributes
-const loc=()=>lang()==='zh'?'zh-CN':lang()==='de'?'de-DE':'en-GB';
+const LL=(en,zh,de,ru,kk)=>{const v={zh,de,ru,kk}[lang()];return v===undefined?en:v;};   // for text with numbers: rendered in place, not by the page translator
+const tx=s=>{const i={zh:0,de:1,ru:2,kk:3}[lang()];return i!==undefined&&I18N[s]&&I18N[s][i]?I18N[s][i]:s;}; // for attributes
+const loc=()=>LOC(); // same locale rules as the rest of the site
 const H=3600e3;
 function load(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}}
 function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true;}catch(e){return false;}}
 function ago(ts){const m=Math.max(0,Math.round((Date.now()-ts)/6e4));
-  if(m<1)return LL('just now','刚刚','gerade eben');
-  if(m<60)return LL(`${m} min ago`,`${m}分钟前`,`vor ${m} Min.`);
-  const h=Math.round(m/60);if(h<48)return LL(`${h} h ago`,`${h}小时前`,`vor ${h} Std.`);
-  const d=Math.round(h/24);return LL(`${d} days ago`,`${d}天前`,`vor ${d} Tagen`);}
+  if(m<1)return LL('just now','刚刚','gerade eben','только что','жаңа ғана');
+  if(m<60)return LL(`${m} min ago`,`${m}分钟前`,`vor ${m} Min.`,`${m} мин назад`,`${m} мин бұрын`);
+  const h=Math.round(m/60);if(h<48)return LL(`${h} h ago`,`${h}小时前`,`vor ${h} Std.`,`${h} ч назад`,`${h} сағ бұрын`);
+  const d=Math.round(h/24);return LL(`${d} days ago`,`${d}天前`,`vor ${d} Tagen`,`${d} дн. назад`,`${d} күн бұрын`);}
 const N=s=>`<span translate="no">${s}</span>`;
 function dist(a,b,c,d){const R=6371e3,r=Math.PI/180,x=(d-b)*r*Math.cos((a+c)/2*r),y=(c-a)*r;return Math.hypot(x,y)*R;}
 function bearing(a,b,c,d){const r=Math.PI/180,y=Math.sin((d-b)*r)*Math.cos(c*r),x=Math.cos(a*r)*Math.sin(c*r)-Math.sin(a*r)*Math.cos(c*r)*Math.cos((d-b)*r);return (Math.atan2(y,x)/r+360)%360;}
-function dirName(deg){const en=['north','north-east','east','south-east','south','south-west','west','north-west'],zh=['北','东北','东','东南','南','西南','西','西北'],de=['Norden','Nordosten','Osten','Südosten','Süden','Südwesten','Westen','Nordwesten'];const i=Math.round(deg/45)%8;return LL(en[i],zh[i],de[i]);}
+function dirName(deg){const en=['north','north-east','east','south-east','south','south-west','west','north-west'],zh=['北','东北','东','东南','南','西南','西','西北'],de=['Norden','Nordosten','Osten','Südosten','Süden','Südwesten','Westen','Nordwesten'],ru=['север','северо-восток','восток','юго-восток','юг','юго-запад','запад','северо-запад'],kk=['солтүстік','солтүстік-шығыс','шығыс','оңтүстік-шығыс','оңтүстік','оңтүстік-батыс','батыс','солтүстік-батыс'];const i=Math.round(deg/45)%8;return LL(en[i],zh[i],de[i],ru[i],kk[i]);}
 function fmtDist(m){return m<1000?`${Math.round(m/10)*10} m`:`${(m/1000).toFixed(1)} km`;}
 function tourOf(id){return TOURS.find(t=>t.id===id);}
 function facility(pk,id){return PARKS[pk]&&PARKS[pk].f.find(f=>f.id===id);}
@@ -143,12 +143,19 @@ const ICO={
 };
 const ico=(t,s=18)=>`<svg viewBox="0 0 24 24" width="${s}" height="${s}" aria-hidden="true">${ICO[t]||ICO.spot}</svg>`;
 
-/* ---------- storage: outbox on the phone, "server" of the park office ---------- */
-const OUT='sr_pk_out',SRV='sr_pk_srv',PACKS='sr_packs',SIM='sr_pk_sim';
+/* ---------- storage and server ----------
+   outbox     reports made on this phone, not sent yet (no signal)
+   sample     made-up reports from "other visitors", local only, marked as sample data
+   server     Supabase when assets/parks/config.js has a project (live: every phone and the office
+              panel on the projector see the same data); otherwise this browser plays the server */
+const OUT='sr_pk_out',SRV='sr_pk_srv',SAMPLE='sr_pk_sample',CACHE='sr_pk_cache',MINE='sr_pk_mine',PACKS='sr_packs',SIM='sr_pk_sim',
+  CK='sr_ck',CKQ='sr_ck_q',CKSRV='sr_ck_srv',CKCACHE='sr_ck_cache',RELAYN='sr_relay_n';
 let simOff=load(SIM,false);
 const online=()=>navigator.onLine&&!simOff;
+const CFG=window.SR_CONFIG||{},API=CFG.supabaseUrl&&CFG.supabaseKey?String(CFG.supabaseUrl).replace(/\/+$/,''):null;
+const rid=p=>p+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 function seed(){
-  if(load('sr_pk_seed',0)===2)return;
+  if(load('sr_pk_seed',0)===3)return;
   /* sample reports from other visitors over the last 7 days, so the office panel shows a working week */
   let s=7;const rnd=()=>(s=(s*16807)%2147483647)/2147483647;const now=Date.now(),out=[];
   const plan={kolsai:[['k-wc2','dirty',6],['k-wc2','supplies',3],['k-bin2','full',7],['k-bin3','full',4],['k-bin3','litter',3],['k-wc1','dirty',3],['k-tap','ok',2],['k-gate','ok',2],[null,'nosig',8],[null,'litter',4],[null,'sigok',2]],
@@ -158,30 +165,139 @@ function seed(){
     altynemel:[['a-wc1','dirty',3],['a-bin1','full',4],[null,'litter',3],[null,'nosig',4]]};
   for(const pk in plan)for(const [fid,kind,n] of plan[pk])for(let i=0;i<n;i++){
     const P=PARKS[pk],f=fid&&facility(pk,fid);let lat,lng;
-    if(f){lat=f.lat;lng=f.lng;}else{const base=kind==='nosig'||kind==='sigok'?(P.trail[Math.floor(rnd()*P.trail.length)]):P.trail[Math.floor(rnd()*P.trail.length)];lat=base[0]+(rnd()-.5)*.0016;lng=base[1]+(rnd()-.5)*.0022;}
+    if(f){lat=f.lat;lng=f.lng;}else{const base=P.trail[Math.floor(rnd()*P.trail.length)];lat=base[0]+(rnd()-.5)*.0016;lng=base[1]+(rnd()-.5)*.0022;}
     const ts=now-rnd()*7*24*H;const old=now-ts>20*H&&rnd()<.72&&K[kind].sev>0;
     out.push({id:'s'+out.length,park:pk,f:fid,kind,lat:+lat.toFixed(5),lng:+lng.toFixed(5),ts:Math.round(ts),by:'sample',status:old?'done':(rnd()<.25&&K[kind].sev>0?'work':'new'),doneAt:old?Math.round(ts+(1.5+rnd()*9)*H):null,sentAt:Math.round(ts)});
   }
-  const mine=load(SRV,[]).filter(r=>r.by!=='sample');
-  save(SRV,out.concat(mine));save('sr_pk_seed',2);
+  save(SAMPLE,out);save(SRV,load(SRV,[]).filter(r=>r.by!=='sample'));save('sr_pk_seed',3);
 }
-const srv=()=>load(SRV,[]);const outbox=()=>load(OUT,[]);
+const mine=()=>new Set(load(MINE,[]));
+/* everything the office knows: sample data plus real reports (from the server, or from this browser in demo mode) */
+function srv(){const m=mine();const real=(API?load(CACHE,[]):load(SRV,[])).map(r=>Object.assign(r,{by:m.has(r.id)?'you':(API?'live':'you')}));return load(SAMPLE,[]).concat(real);}
+const outbox=()=>load(OUT,[]);
 function addReport(r){const o=outbox();o.push(r);if(!save(OUT,o)&&r.photo){delete r.photo;o[o.length-1]=r;save(OUT,o);}bc('change');sync();}
-function sync(){
-  const o=outbox();if(!o.length||!online()){paintNet();return 0;}
-  const s=srv(),now=Date.now();o.forEach(r=>{r.sentAt=now;s.push(r);});
-  save(SRV,s);save(OUT,[]);bc('change');paintNet();
-  pkToast(`✓ ${N(LL(`${o.length} report${o.length>1?'s':''} sent to the park office`,`已向公园管理处发送${o.length}条反馈`,`${o.length} Meldung${o.length>1?'en':''} an die Parkverwaltung gesendet`))}`);
-  rerender();return o.length;
+
+/* Supabase REST (PostgREST). The anon / publishable key is public by design; row-level security in supabase/schema.sql decides what it may do */
+async function rest(path,opt={}){
+  const h=Object.assign({apikey:CFG.supabaseKey,'Content-Type':'application/json'},/^eyJ/.test(CFG.supabaseKey)?{Authorization:'Bearer '+CFG.supabaseKey}:{},opt.headers||{});
+  const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),9000);
+  try{const r=await fetch(API+'/rest/v1/'+path,Object.assign({},opt,{headers:h,signal:ctl.signal}));const t=await r.text();
+    if(!r.ok)throw new Error(r.status+' '+t.slice(0,160));return t?JSON.parse(t):null;}finally{clearTimeout(tm);}
 }
-function setStatus(ids,status){const s=srv(),now=Date.now();s.forEach(r=>{if(ids.includes(r.id)){r.status=status;if(status==='done')r.doneAt=now;}});save(SRV,s);bc('change');rerender();}
-/* other tabs: the office panel in one window updates when a tourist reports in another */
+const toRow=(r,now)=>({id:r.id,park:r.park,f:r.f||null,kind:r.kind,lat:r.lat,lng:r.lng,ts:r.ts,note:r.note||null,photo:r.photo||null,src:r.src==='relay'?'relay':'phone',sent_at:now});
+const fromRow=r=>({id:r.id,park:r.park,f:r.f,kind:r.kind,lat:r.lat,lng:r.lng,ts:+r.ts,note:r.note,photo:r.photo,src:r.src,status:r.status,doneAt:r.done_at?+r.done_at:null,sentAt:r.sent_at?+r.sent_at:null});
+let syncing=false,srvErr=null,lastPull=0,sig='';
+async function pull(){
+  if(!API||!online())return false;
+  const since=Date.now()-8*24*H;
+  const [rs,cs]=await Promise.all([rest(`reports?select=id,park,f,kind,lat,lng,ts,note,photo,src,status,done_at,sent_at&ts=gte.${since}&order=ts.desc&limit=1500`),
+    rest('checkins_public?select=*&order=due_at.desc&limit=200')]);
+  lastPull=Date.now();const next=JSON.stringify([rs,cs]);if(next===sig)return false;sig=next;
+  save(CACHE,rs.map(fromRow));save(CKCACHE,cs);return true;
+}
+async function sync(){
+  if(syncing){sync.again=true;return;}
+  if(!online()){paintNet();return;}
+  syncing=true;let changed=false,sent=0,relayed=0;
+  try{
+    const o=outbox();
+    if(o.length){const now=Date.now();
+      if(API)await rest('reports?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=ignore-duplicates,return=minimal'},body:JSON.stringify(o.map(r=>toRow(r,now)))});
+      else{const s=load(SRV,[]),have=new Set(s.map(r=>r.id));o.forEach(r=>{if(!have.has(r.id))s.push(Object.assign({},r,{sentAt:now,status:'new'}));});save(SRV,s);}
+      const ids=new Set(o.map(r=>r.id));save(OUT,outbox().filter(r=>!ids.has(r.id)));
+      save(MINE,[...mine(),...o.filter(r=>r.src!=='relay').map(r=>r.id)].slice(-300));
+      sent=o.filter(r=>r.src!=='relay').length;relayed=o.length-sent;changed=true;
+    }
+    if(await pushCheckins())changed=true;
+    if(API&&await pull())changed=true;
+    srvErr=null;
+  }catch(e){srvErr=String(e.message||e);}
+  syncing=false;paintNet();
+  if(sent||relayed)pkToast(`✓ ${N([sent?LL(`${sent} report${sent>1?'s':''} sent to the park office`,`已向公园管理处发送${sent}条反馈`,`${sent} Meldung${sent>1?'en':''} an die Parkverwaltung gesendet`,`Отправлено в администрацию парка: ${sent}`,`Парк әкімшілігіне жіберілді: ${sent}`):'',relayed?LL(`${relayed} passed on for other travelers`,`代其他游客转发${relayed}条`,`${relayed} für andere Reisende weitergegeben`,`Передано за других туристов: ${relayed}`,`Басқа саяхатшылар үшін жіберілді: ${relayed}`):''].filter(Boolean).join(' · '))}`);
+  if(changed){bc('change');rerender();}
+  if(sync.again){sync.again=false;sync();}
+}
+async function setStatus(ids,status){
+  const now=Date.now(),smp=load(SAMPLE,[]),sIds=new Set(smp.map(r=>r.id));
+  smp.forEach(r=>{if(ids.includes(r.id)){r.status=status;if(status==='done')r.doneAt=now;}});save(SAMPLE,smp);
+  const real=ids.filter(i=>!sIds.has(i));
+  if(real.length){
+    if(API){const c=load(CACHE,[]);c.forEach(r=>{if(real.includes(r.id)){r.status=status;if(status==='done')r.doneAt=now;}});save(CACHE,c);
+      try{await rest(`reports?id=in.(${real.join(',')})`,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({status,done_at:status==='done'?now:null})});srvErr=null;}catch(e){srvErr=String(e.message||e);}}
+    else{const s=load(SRV,[]);s.forEach(r=>{if(real.includes(r.id)){r.status=status;if(status==='done')r.doneAt=now;}});save(SRV,s);}
+  }
+  bc('change');rerender();
+}
+/* live updates: the office on the projector asks the server every few seconds; tabs of one browser hear each other at once */
 let chan=null;try{chan=new BroadcastChannel('samruk-parks');chan.onmessage=()=>rerender();}catch(e){}
 function bc(m){try{chan&&chan.postMessage(m);}catch(e){}}
-window.addEventListener('storage',e=>{if(e.key===SRV||e.key===OUT)rerender();});
+window.addEventListener('storage',e=>{if([SRV,OUT,SAMPLE,CKSRV,CK].includes(e.key))rerender();});
 window.addEventListener('online',()=>{paintNet();setTimeout(sync,400);});
 window.addEventListener('offline',paintNet);
+const tick={k:''};
+setInterval(()=>{
+  if(document.hidden||!online())return;
+  const office=!$('#view-office').hidden,busy=!$('#view-parks').hidden||!$('#view-pack').hidden;
+  if(outbox().length||load(CKQ,[]).length)sync();
+  else if(API&&(office||busy)&&Date.now()-lastPull>(office?2500:12000))pull().then(ch=>{if(ch)rerender();srvErr=null;}).catch(e=>{srvErr=String(e.message||e);paintNet();});
+  if(office&&!API){const k=JSON.stringify(checkins().map(c=>c.state));if(k!==tick.k){tick.k=k;renderOffice();}} // overdue check-ins appear without a reload
+},3000);
 
+/* ---------- safety check-in: if I am not back by my time, my contact gets an SMS with my last point ---------- */
+function myCk(){return load(CK,null);}
+function ckQueue(op){const q=load(CKQ,[]);if(op.op==='point'){const i=q.findIndex(x=>x.op==='point'&&x.id===op.id);if(i>=0){if(q[i].ts>=op.ts)return;q.splice(i,1);}}q.push(op);save(CKQ,q);}
+function ckStart(o){
+  const ck={id:rid('c'),name:o.name,contact:o.contact,park:o.park||null,tour:o.tour||null,due:o.due,startedAt:Date.now(),status:'out'};save(CK,ck);
+  ckQueue({op:'start',id:ck.id,name:ck.name,contact:ck.contact,park:ck.park,tour:ck.tour,due:ck.due,lat:me?+me.lat.toFixed(5):null,lng:me?+me.lng.toFixed(5):null,ts:me?me.ts:null});
+  if(me)save('sr_ck_last',{lat:+me.lat.toFixed(5),lng:+me.lng.toFixed(5),ts:me.ts});
+  sync();return ck;
+}
+function ckPoint(p,src){const ck=myCk();if(!ck||ck.status!=='out')return;const last=load('sr_ck_last',null);
+  if(src!=='relay'&&last&&p.ts-last.ts<60000&&dist(last.lat,last.lng,p.lat,p.lng)<40)return;
+  const pt={lat:+p.lat.toFixed(5),lng:+p.lng.toFixed(5),ts:p.ts};if(src!=='relay')save('sr_ck_last',pt);
+  ckQueue(Object.assign({op:'point',id:p.id||ck.id,src:src||'phone'},pt));if(online())sync();}
+function ckBack(){const ck=myCk();if(!ck)return;ck.status='back';ck.backAt=Date.now();save(CK,ck);ckQueue({op:'back',id:ck.id,ts:ck.backAt});sync();}
+async function pushCheckins(){
+  const q=load(CKQ,[]);if(!q.length)return false;const done=[];
+  for(const op of q){
+    if(API){
+      if(op.op==='start')await rest('rpc/checkin_start',{method:'POST',body:JSON.stringify({p_id:op.id,p_name:op.name,p_contact:op.contact,p_park:op.park,p_tour:op.tour,p_due:op.due,p_lat:op.lat,p_lng:op.lng,p_ts:op.ts})});
+      else if(op.op==='point')await rest('rpc/checkin_point',{method:'POST',body:JSON.stringify({p_id:op.id,p_lat:op.lat,p_lng:op.lng,p_ts:op.ts,p_src:op.src})});
+      else if(op.op==='back')await rest('rpc/checkin_back',{method:'POST',body:JSON.stringify({p_id:op.id,p_ts:op.ts})});
+    }else{
+      const s=load(CKSRV,[]);let c=s.find(x=>x.id===op.id);
+      if(op.op==='start'){if(!c){c={id:op.id};s.push(c);}Object.assign(c,{name:String(op.name).split(' ')[0],contact_masked:maskPhone(op.contact),park:op.park,tour:op.tour,due_at:op.due,last_lat:op.lat,last_lng:op.lng,last_ts:op.ts,last_src:'phone',status:'out',back_at:null,sms_sent_at:null});}
+      else if(c&&op.op==='point'&&(!c.last_ts||c.last_ts<op.ts))Object.assign(c,{last_lat:op.lat,last_lng:op.lng,last_ts:op.ts,last_src:op.src});
+      else if(c&&op.op==='back')Object.assign(c,{status:'back',back_at:op.ts});
+      save(CKSRV,s);
+    }
+    done.push(op);
+  }
+  save(CKQ,load(CKQ,[]).filter(x=>!done.includes(x)&&!done.some(d=>d.op===x.op&&d.id===x.id&&d.ts===x.ts)));
+  const ck=myCk();if(ck&&done.some(d=>d.id===ck.id)){ck.synced=true;save(CK,ck);}
+  return true;
+}
+function maskPhone(p){const d=String(p).replace(/[^0-9]/g,'');return `+${d.slice(0,1)} ${d.slice(1,4)} ••• •• ${d.slice(-2)}`;}
+function checkins(){const now=Date.now();return (API?load(CKCACHE,[]):load(CKSRV,[])).map(c=>Object.assign({},c,{state:c.status==='out'&&+c.due_at<now?'overdue':c.status}));}
+
+/* ---------- relay: a phone with no signal hands its reports and last point to another traveler by QR ---------- */
+const RELAY_MAX=6;
+function relayPayload(){
+  const o=outbox().slice(-RELAY_MAX).map(r=>[r.id,r.park,r.f||0,r.kind,r.lat,r.lng,Math.round(r.ts/1000).toString(36)]);
+  const ck=myCk(),last=load('sr_ck_last',null),pt=me&&ck&&ck.status==='out'&&ck.synced?{lat:+me.lat.toFixed(5),lng:+me.lng.toFixed(5),ts:me.ts}:(ck&&ck.status==='out'&&ck.synced?last:null);
+  const c=pt?[ck.id,pt.lat,pt.lng,Math.round(pt.ts/1000).toString(36)]:0;
+  return {text:'SRLY1:'+JSON.stringify({r:o,c}),n:o.length,c:!!c};
+}
+function relayTake(text){
+  const m=/^SRLY1:(.+)$/s.exec(String(text||'').trim());if(!m)return null;let d;try{d=JSON.parse(m[1]);}catch(e){return null;}
+  const o=outbox(),have=new Set(o.map(r=>r.id).concat(srv().map(r=>r.id)));let n=0;
+  (Array.isArray(d.r)?d.r:[]).slice(0,20).forEach(a=>{const [id,park,f,kind,lat,lng,t36]=a;
+    if(typeof id!=='string'||!/^[a-z0-9]{4,40}$/.test(id)||!PARKS[park]||!K[kind]||have.has(id)||typeof lat!=='number'||typeof lng!=='number')return;
+    o.push({id,park,f:f&&facility(park,f)?f:null,kind,lat,lng,ts:parseInt(t36,36)*1000,note:'',photo:null,src:'relay',status:'new'});n++;});
+  save(OUT,o);
+  let c=false;if(Array.isArray(d.c)&&/^[a-z0-9]{4,40}$/.test(d.c[0])&&typeof d.c[1]==='number'){ckQueue({op:'point',id:d.c[0],lat:d.c[1],lng:d.c[2],ts:parseInt(d.c[3],36)*1000,src:'relay'});c=true;}
+  save(RELAYN,load(RELAYN,0)+n+(c?1:0));bc('change');sync();return {n,c};
+}
 /* status of one facility: open issues from the last 48 h, or fixed recently */
 function fstat(pk,fid,all){
   const rs=(all||srv().concat(outbox())).filter(r=>r.park===pk&&r.f===fid);
@@ -194,7 +310,7 @@ function fstat(pk,fid,all){
   return{s:'none'};
 }
 function fstatLine(st){
-  if(st.s==='bad'||st.s==='warn')return `<span class="pk-st pk-st-${st.s}">${esc(K[st.top.kind].l)}</span> <span class="muted">· ${N(ago(st.top.ts))}${st.n>1?' · '+N(LL(`${st.n} reports`,`${st.n}条反馈`,`${st.n} Meldungen`)):''}</span>`;
+  if(st.s==='bad'||st.s==='warn')return `<span class="pk-st pk-st-${st.s}">${esc(K[st.top.kind].l)}</span> <span class="muted">· ${N(ago(st.top.ts))}${st.n>1?' · '+N(LL(`${st.n} reports`,`${st.n}条反馈`,`${st.n} Meldungen`,`отметок: ${st.n}`,`белгі: ${st.n}`)):''}</span>`;
   if(st.s==='fixed')return `<span class="pk-st pk-st-ok">Fixed by park staff</span> <span class="muted">· ${N(ago(st.at))}</span>`;
   if(st.s==='ok')return `<span class="pk-st pk-st-ok">Visitors say all good</span> <span class="muted">· ${N(ago(st.at))}</span>`;
   return `<span class="pk-st">No reports yet</span>`;
@@ -205,12 +321,15 @@ function paintNet(){
   const n=outbox().length,on=online();
   document.querySelectorAll('.pk-net').forEach(el=>{
     el.className='pk-net '+(on?'on':'off');
-    el.innerHTML=`<span class="pk-dot" aria-hidden="true"></span><span>${on?'Online':'No signal'}</span>${n?` · ${N(LL(`${n} waiting to send`,`${n}条待发送`,`${n} warten auf Versand`))}`:''}`;
+    el.innerHTML=`<span class="pk-dot" aria-hidden="true"></span><span>${on?'Online':'No signal'}</span>${n?` · ${N(LL(`${n} waiting to send`,`${n}条待发送`,`${n} warten auf Versand`,`ждут отправки: ${n}`,`жіберуді күтуде: ${n}`))}`:''}`;
+    el.title=tx(API?(srvErr?'Server error: '+srvErr:'Live server: every phone and the park office see the same data'):'Demo mode: no server yet, data stays in this browser');
   });
   document.querySelectorAll('.pk-sim').forEach(b=>b.setAttribute('aria-pressed',String(simOff)));
+  document.querySelectorAll('.pk-mode').forEach(el=>{el.className='pk-mode '+(API?(srvErr?'err':'live'):'demo');
+    el.innerHTML=API?(srvErr?'<span>Server not reachable</span>':'<span class="pk-dot" aria-hidden="true"></span><span>Live server</span>'):'<span>Demo: data in this browser</span>';});
 }
 function toggleSim(){simOff=!simOff;save(SIM,simOff);paintNet();
-  pkToast(simOff?N(LL('Test mode: the site now acts as if there is no signal','测试模式：网站现在模拟没有信号','Testmodus: Die Seite verhält sich jetzt wie ohne Netz')):N(LL('Signal is back','信号已恢复','Netz ist wieder da')));
+  pkToast(simOff?N(LL('Test mode: the site now acts as if there is no signal','测试模式：网站现在模拟没有信号','Testmodus: Die Seite verhält sich jetzt wie ohne Netz','Тестовый режим: сайт ведёт себя так, будто связи нет','Сынақ режимі: сайт байланыс жоқ сияқты жұмыс істейді')):N(LL('Signal is back','信号已恢复','Netz ist wieder da','Связь вернулась','Байланыс қайта пайда болды')));
   rerender();if(!simOff)setTimeout(sync,900);}
 
 /* ---------- park plan: a schematic SVG that needs no internet ---------- */
@@ -244,11 +363,11 @@ function parkSvg(pk,o={}){
 let me=null,watch=null;
 function locate(cb){
   if(!navigator.geolocation){cb&&cb(null);return;}
-  if(watch===null)watch=navigator.geolocation.watchPosition(p=>{me={lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy,ts:Date.now()};cb&&cb(me);cb=null;paintMe();},()=>{cb&&cb(null);cb=null;},{enableHighAccuracy:true,maximumAge:20000,timeout:15000});
+  if(watch===null)watch=navigator.geolocation.watchPosition(p=>{me={lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy,ts:Date.now()};cb&&cb(me);cb=null;ckPoint(me);paintMe();},()=>{cb&&cb(null);cb=null;},{enableHighAccuracy:true,maximumAge:20000,timeout:15000});
   else cb&&cb(me);
 }
 const nearPark=pk=>me&&dist(me.lat,me.lng,PARKS[pk].c[0],PARKS[pk].c[1])<4000;
-function paintMe(){if(!$('#view-pack').hidden&&cur.pack)renderPack(cur.pack,true);if(!$('#view-parks').hidden&&pmap.me&&me&&window.L){pmap.me.setLatLng([me.lat,me.lng]).addTo(pmap.m);}}
+function paintMe(){if(!$('#view-pack').hidden&&cur.pack&&!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#packBox input')))renderPack(cur.pack,true);if(!$('#view-parks').hidden&&pmap.me&&me&&window.L){pmap.me.setLatLng([me.lat,me.lng]).addTo(pmap.m);}}
 /* nearest facility of a type, from me or from the gate */
 function nearest(pk,type,from){const P=PARKS[pk];const o=from||{lat:P.f[0].lat,lng:P.f[0].lng};
   let best=null;const list=type==='signal'?P.sig.filter(s=>s.q>0).map(s=>({lat:s.lat,lng:s.lng,n:s.n,r:s.r})):P.f.filter(f=>f.t===type);
@@ -259,7 +378,7 @@ const cur={park:'kolsai',sel:null,layers:{toilet:1,bin:1,water:1,aid:1,ranger:1,
 const pmap={m:null,g:null,me:null,park:null};
 function openParks(pk,fromHistory){
   if(pk&&PARKS[pk])cur.park=pk;cur.sel=null;cur.mode=null;
-  show('parks');markNav('parks');renderParks();
+  show('parks');markNav('parks');renderParks();loadJsQR().catch(()=>{}); // the scanner must be ready before the signal is gone
   if(!fromHistory)push({view:'parks',park:cur.park});
 }
 function markNav(v){document.querySelectorAll('.nav [data-view]').forEach(b=>b.setAttribute('aria-current',String(b.dataset.view===v)));}
@@ -272,6 +391,7 @@ function renderParks(){
   $('#pkPack').innerHTML=packed?`<a class="btn btn-line sm" href="#pack-${P.tour}" data-pack="${P.tour}">✓ <span>Saved for offline · open</span></a>`:`<button class="btn btn-gold sm" data-savepack="${P.tour}">${ico('signal',16)} <span>Save this park for offline</span></button>`;
   $('#pkTour').innerHTML=t?`<button class="btn btn-line sm" data-tour="${t.id}"><span>Trip:</span> <span>${esc(t.name)}</span></button>`:'';
   paintNet();renderPanel();renderOutbox();
+  const rb=$('#pkRelay');if(rb)rb.innerHTML=relayCard(true)+`<a class="btn btn-line sm pk-cklink" href="#pack-${P.tour}" data-pack="${P.tour}">${ico('ranger',14)} <span>Safety check-in for this park</span></a>`;
   const useMap=window.L&&online();
   $('#pkMapWrap').classList.toggle('pk-offline',!useMap);
   $('#pkOffNote').hidden=useMap;
@@ -334,7 +454,7 @@ function submit(kind){
   const P=PARKS[cur.park],f=cur.mode==='spot'?null:facility(cur.park,cur.sel);const pos=f||cur.spot;if(!pos)return;
   const note=($('#pkNote')&&$('#pkNote').value.trim())||'';
   addReport({id:'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),park:cur.park,f:f?f.id:null,kind,lat:+pos.lat.toFixed(5),lng:+pos.lng.toFixed(5),ts:Date.now(),note,photo:cur.photo,by:'you',status:'new'});
-  if(!online())pkToast(`⏳ ${N(LL('Saved on your phone. It will be sent when there is signal.','已保存在手机上，有信号时会自动发送。','Auf dem Handy gespeichert. Wird gesendet, sobald es Netz gibt.'))}`);
+  if(!online())pkToast(`⏳ ${N(LL('Saved on your phone. It will be sent when there is signal.','已保存在手机上，有信号时会自动发送。','Auf dem Handy gespeichert. Wird gesendet, sobald es Netz gibt.','Сохранено в телефоне. Отправится, когда появится связь.','Телефонда сақталды. Байланыс болғанда жіберіледі.'))}`);
   cur.photo=null;if(cur.mode==='spot'){cur.mode=null;cur.spot=null;}
   renderParks();
 }
@@ -353,7 +473,7 @@ async function readPhoto(file){
 
 /* ---------- OFFLINE PACK ---------- */
 function packUrls(tid){
-  const t=tourOf(tid),u=['./','index.html','manifest.webmanifest','assets/parks/parks.js','assets/parks/parks.css','assets/parks/qrcode.js','assets/parks/icon-192.png',
+  const t=tourOf(tid),u=['./','index.html','manifest.webmanifest','assets/parks/parks.js','assets/parks/parks.css','assets/parks/qrcode.js','assets/parks/jsQR.js','assets/parks/config.js','assets/parks/i18n.js','assets/i18n/ru-kk.js','assets/parks/icon-192.png',
     'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css','https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'];
   if(t&&t.photo)u.push(commonsImg(t.photo.file,640),commonsImg(t.photo.file,960));
   (GALLERY[tid]||[]).forEach(f=>u.push(commonsImg(f,320)));
@@ -364,13 +484,13 @@ function savePack(tid,code){
   const p=load(PACKS,{});p[tid]=Object.assign(p[tid]||{},{savedAt:Date.now()},code?{code}:{});save(PACKS,p);
   const urls=packUrls(tid);
   if(navigator.serviceWorker&&navigator.serviceWorker.controller){
-    const ch=new MessageChannel();ch.port1.onmessage=e=>{const d=e.data||{};pkToast(`✓ ${N(LL(`Saved for offline: ${d.ok} of ${d.total} files on your phone`,`已离线保存：${d.ok}/${d.total}个文件在您的手机上`,`Offline gespeichert: ${d.ok} von ${d.total} Dateien auf Ihrem Handy`))}`);};
+    const ch=new MessageChannel();ch.port1.onmessage=e=>{const d=e.data||{};pkToast(`✓ ${N(LL(`Saved for offline: ${d.ok} of ${d.total} files on your phone`,`已离线保存：${d.ok}/${d.total}个文件在您的手机上`,`Offline gespeichert: ${d.ok} von ${d.total} Dateien auf Ihrem Handy`,`Сохранено для офлайна: ${d.ok} из ${d.total} файлов в телефоне`,`Офлайнға сақталды: телефонда ${d.total} файлдың ${d.ok}`))}`);};
     navigator.serviceWorker.controller.postMessage({type:'pack',urls},[ch.port2]);
-  }else pkToast(`✓ ${N(LL('Saved. Keep this page open, or add the site to your home screen for full offline use.','已保存。请保持此页面打开，或将网站添加到主屏幕以完全离线使用。','Gespeichert. Lassen Sie die Seite offen oder legen Sie sie auf den Startbildschirm, um sie ganz offline zu nutzen.'))}`);
+  }else pkToast(`✓ ${N(LL('Saved. Keep this page open, or add the site to your home screen for full offline use.','已保存。请保持此页面打开，或将网站添加到主屏幕以完全离线使用。','Gespeichert. Lassen Sie die Seite offen oder legen Sie sie auf den Startbildschirm, um sie ganz offline zu nutzen.','Сохранено. Не закрывайте страницу или добавьте сайт на главный экран, чтобы он работал полностью офлайн.','Сақталды. Бетті жаппаңыз немесе толық офлайн жұмыс үшін сайтты басты экранға қосыңыз.'))}`);
   rerender();
 }
 function removePack(tid){const p=load(PACKS,{});delete p[tid];save(PACKS,p);}
-function openPack(tid,fromHistory){if(!tourOf(tid))return;cur.pack=tid;show('pack');markNav('');renderPack(tid);if(!fromHistory)push({view:'pack',tour:tid});
+function openPack(tid,fromHistory){if(!tourOf(tid))return;cur.pack=tid;show('pack');markNav('');renderPack(tid);loadJsQR().catch(()=>{});if(!fromHistory)push({view:'pack',tour:tid});
   if(PARK_OF[tid])locate(()=>renderPack(tid,true));}
 function qrSvg(text){try{const q=qrcode(0,'M');q.addData(text);q.make();return q.createSvgTag({cellSize:4,margin:2,scalable:true});}catch(e){return '';}}
 function renderPack(tid,soft){
@@ -386,6 +506,7 @@ function renderPack(tid,soft){
     <div class="pk-packbtns"><span class="pk-net"></span>${pack?`<button class="btn btn-line sm" data-savepack="${tid}">Update</button><button class="btn btn-line sm" data-unpack="${tid}">Remove</button>`:`<button class="btn btn-gold" data-savepack="${tid}">Save for offline</button>`}</div>
   </div>
   <div class="pk-packgrid">
+    ${ckCard(tid)}
     <section class="pk-card pk-ticket"><h3>Your ticket</h3>
       <div class="pk-qr" translate="no">${qrSvg(`SAMRUK:${code||'SAMPLE'}:${tid}`)}</div>
       <p><b translate="no">${esc(code||'SR-SAMPLE')}</b>${code?'':' <span class="demo-tag">Sample</span>'}</p>
@@ -396,6 +517,7 @@ function renderPack(tid,soft){
       <p class="muted pk-small">A text message often gets through when calls and mobile data do not. GPS works without signal.</p>
       ${g?`<div class="pk-contact"><span class="ava" style="background:${g.c}">${esc(g.n[0])}</span><div><b>${esc(g.n)}</b><small>Your guide · WhatsApp +7 700 000 00 00 (sample)</small></div></div>`:''}
       ${P?`<div class="pk-contact"><span class="ava pk-rng">${ico('ranger',16)}</span><div><b>${esc(P.f.find(f=>f.t==='ranger').n)}</b><small>Park rangers · +7 700 000 00 01 (sample)</small></div></div>`:''}</section>
+    ${relayCard()}
     ${P?`<section class="pk-card pk-wide"><div class="pk-planhead"><h3><span>Park plan:</span> <span>${esc(P.short)}</span></h3><a class="btn btn-line sm" href="#parks-${pk}" data-openpark="${pk}">Report a problem</a></div>
       ${plan.svg}
       <div class="pk-legend-s">${['toilet','bin','water','aid','ranger'].map(k=>`<span>${ico(k,14)} ${esc(FT[k])}</span>`).join('')}<span><i class="pk-sw g"></i>Good signal</span><span><i class="pk-sw w"></i>Weak signal</span><span><i class="pk-sw n"></i>No signal</span></div>
@@ -410,19 +532,103 @@ function renderPack(tid,soft){
   box.innerHTML=html;paintNet();
 }
 
+/* ---------- check-in and relay cards ---------- */
+function hhmm(ts){return new Date(+ts).toLocaleTimeString(loc(),{hour:'2-digit',minute:'2-digit'});}
+function dur(ms){const m=Math.max(0,Math.round(Math.abs(ms)/6e4)),h=Math.floor(m/60),mm=m%60;
+  return h?LL(`${h} h ${mm} min`,`${h}小时${mm}分钟`,`${h} Std. ${mm} Min.`,`${h} ч ${mm} мин`,`${h} сағ ${mm} мин`):LL(`${mm} min`,`${mm}分钟`,`${mm} Min.`,`${mm} мин`,`${mm} мин`);}
+function ckCard(tid){
+  const ck=myCk(),now=Date.now(),last=load('sr_ck_last',null),pend=load(CKQ,[]).length;
+  const note=`<p class="src pk-gpsnote">Phones do not let a website record GPS in the background, and iPhone is the strictest. Your last point is from the last time this page was open with location on, or from a traveler who relayed it.</p>`;
+  if(ck&&ck.status==='out'){
+    const over=now>ck.due;
+    return `<section class="pk-card pk-ck${over?' over':''}"><h3>Safety check-in</h3>
+      <p class="pk-ckstate">${over?`<span class="pk-st pk-st-bad">Overdue</span> ${N(LL(`by ${dur(now-ck.due)}: the alarm goes to your contact`,`已超时${dur(now-ck.due)}：警报会发给您的联系人`,`seit ${dur(now-ck.due)}: Der Alarm geht an Ihren Kontakt`,`на ${dur(now-ck.due)}: тревога уходит вашему контакту`,`${dur(now-ck.due)} кешікті: дабыл байланысыңызға жіберіледі`))}`
+        :`<span class="pk-st pk-st-ok">In the park</span> ${N(LL(`back by ${hhmm(ck.due)}, in ${dur(ck.due-now)}`,`${hhmm(ck.due)}前返回，还剩${dur(ck.due-now)}`,`zurück bis ${hhmm(ck.due)}, in ${dur(ck.due-now)}`,`вернуться к ${hhmm(ck.due)}, через ${dur(ck.due-now)}`,`${hhmm(ck.due)} дейін оралу, ${dur(ck.due-now)} қалды`))}`}</p>
+      <ul class="pk-near">
+        <li>${ico('ranger',16)} ${ck.synced?'<span>The server has your plan and will text your contact if you are late.</span>':'<span>Waiting for signal to register your plan on the server.</span>'}</li>
+        <li>${ico('spot',16)} ${last?`<span>Last point</span> ${N(`${last.lat.toFixed(4)}, ${last.lng.toFixed(4)} · ${ago(last.ts)}`)}${pend?' · <span>waiting for signal</span>':''}`:'<span>No GPS point yet. Turn on location.</span>'}</li>
+        <li>${ico('signal',16)} <span>Contact:</span> ${N(esc(maskPhone(ck.contact)))}</li></ul>
+      <div class="pk-acts"><button class="btn btn-gold sm" data-ck="back">I am back safe</button><button class="btn btn-line sm" data-ck="later">+1 hour</button>${me?'':'<button class="btn btn-line sm" data-locate>Turn on location</button>'}</div>${note}</section>`;
+  }
+  const t=new Date(now+4*H);t.setMinutes(Math.ceil(t.getMinutes()/15)*15,0,0);const def=new Date(t.getTime()-t.getTimezoneOffset()*6e4).toISOString().slice(0,16);
+  const back=ck&&ck.status==='back'&&now-ck.backAt<12*H?`<p><span class="pk-st pk-st-ok">Back safe</span> ${N(hhmm(ck.backAt))}</p>`:'';
+  return `<section class="pk-card pk-ck"><h3>Safety check-in</h3>${back}
+    <p class="muted pk-small">Start it while you still have signal. If you are not back by your time, the server texts your contact your last GPS point. Nobody else sees the phone number.</p>
+    <form class="pk-ckform" data-ckform="${tid}">
+      <div class="field"><label for="ckName">Your name</label><input id="ckName" required maxlength="60" autocomplete="given-name" value="${esc(load('sr_ck_name',''))}"></div>
+      <div class="field"><label for="ckPhone">Who gets the SMS</label><input id="ckPhone" required type="tel" maxlength="20" placeholder="+7 701 000 00 00" value="${esc(load('sr_ck_phone',''))}"></div>
+      <div class="field"><label for="ckDue">Back by</label><input id="ckDue" required type="datetime-local" value="${def}"></div>
+      <button class="btn btn-gold sm" type="submit">Start check-in</button>
+    </form>${note}</section>`;
+}
+function relayCard(compact){
+  const o=outbox().length,carried=outbox().filter(r=>r.src==='relay').length+load(CKQ,[]).filter(x=>x.src==='relay').length;
+  return `<section class="${compact?'pk-panel':'pk-card'} pk-relay"><h3 class="${compact?'pk-h4':''}">Relay: no signal?</h3>
+    <p class="muted pk-small">Pass your reports and last point to a traveler you meet. Their phone sends them as soon as it finds signal.</p>
+    <div class="pk-acts"><button class="btn btn-gold sm" data-relay="show">${ico('signal',14)} <span>Show my QR</span></button><button class="btn btn-line sm" data-relay="scan">Scan a traveler's QR</button></div>
+    ${carried?`<p class="src">${N(LL(`You carry ${carried} item${carried>1?'s':''} for other travelers.`,`您正在为其他游客携带${carried}条数据。`,`Sie tragen ${carried} Einträge für andere Reisende.`,`Вы везёте данные других туристов: ${carried}.`,`Басқа саяхатшылардың деректерін алып жүрсіз: ${carried}.`))}</p>`:''}</section>`;
+}
+/* modal: show my relay QR, or scan someone else's */
+let scanStop=null;
+function modal(html){let m=$('#pkModal');if(!m){m=document.createElement('div');m.id='pkModal';m.className='modal pk-modal';m.setAttribute('role','dialog');m.setAttribute('aria-modal','true');document.body.appendChild(m);
+    m.addEventListener('click',e=>{if(e.target===m||e.target.closest('[data-mclose]'))closeModal();});}
+  m.innerHTML=`<div class="modal-box pk-mbox">${html}<button class="btn btn-line sm" data-mclose>Close</button></div>`;m.hidden=false;}
+function closeModal(){if(scanStop){scanStop();scanStop=null;}const m=$('#pkModal');if(m)m.hidden=true;}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#pkModal')&&!$('#pkModal').hidden)closeModal();});
+function showRelay(){
+  const p=relayPayload();
+  if(!p.n&&!p.c){modal(`<h3>Nothing to pass on</h3><p class="muted">No reports are waiting on this phone, and there is no check-in point to send.</p>`);return;}
+  let svg='';try{const q=qrcode(0,'L');q.addData(p.text);q.make();svg=q.createSvgTag({cellSize:4,margin:3,scalable:true});}catch(e){}
+  modal(`<h3>Show this to another traveler</h3><div class="pk-qr pk-qrbig" translate="no">${svg}</div>
+    <p>${N(LL(`${p.n} report${p.n===1?'':'s'}${p.c?' and your last point':''}`,`${p.n}条反馈${p.c?'和您的最后位置':''}`,`${p.n} Meldung${p.n===1?'':'en'}${p.c?' und Ihr letzter Standort':''}`,`Отметок: ${p.n}${p.c?', и ваша последняя точка':''}`,`Белгілер: ${p.n}${p.c?', және соңғы нүктеңіз':''}`))}</p>
+    <p class="muted pk-small">They open Samruk Travel, tap "Scan a traveler's QR" and point the camera here. Notes and photos stay on your phone.</p>`);
+}
+let jsqrP=null;function loadJsQR(){if(window.jsQR)return Promise.resolve();if(!jsqrP)jsqrP=new Promise((res,rej)=>{const sc=document.createElement('script');sc.src='assets/parks/jsQR.js';sc.onload=res;sc.onerror=()=>{jsqrP=null;sc.remove();rej();};document.head.appendChild(sc);});return jsqrP;}
+function relayGot(text){const r=relayTake(text);if(!r){pkToast(N(LL('This QR is not a Samruk Travel relay code.','这不是 Samruk Travel 接力二维码。','Das ist kein Samruk-Travel-Staffelcode.','Это не QR-код эстафеты Samruk Travel.','Бұл Samruk Travel эстафета QR-коды емес.')));return false;}
+  closeModal();pkToast(`✓ ${N(LL(`Received ${r.n} report${r.n===1?'':'s'}${r.c?' and a location':''}. They go out when you have signal.`,`已接收${r.n}条反馈${r.c?'和一个位置':''}，有信号时会发送。`,`${r.n} Meldung${r.n===1?'':'en'}${r.c?' und ein Standort':''} empfangen. Sie gehen raus, sobald Sie Netz haben.`,`Получено отметок: ${r.n}${r.c?' и точка':''}. Отправятся, когда появится связь.`,`Алынды: ${r.n} белгі${r.c?' және нүкте':''}. Байланыс пайда болғанда жіберіледі.`))}`);rerender();return true;}
+async function scanRelay(){
+  modal(`<h3>Scan a traveler's QR</h3><div class="pk-scan"><video id="pkVideo" playsinline muted></video><div class="pk-scanframe" aria-hidden="true"></div></div>
+    <p class="muted pk-small" id="pkScanMsg">Point the camera at the QR on the other phone.</p>
+    <label class="btn btn-line sm">${ico('spot',14)} <span>Or take a photo of the QR</span><input type="file" accept="image/*" capture="environment" id="pkQrFile" class="vh"></label>`);
+  try{await loadJsQR();}catch(e){$('#pkScanMsg').textContent=tx('The scanner did not load. Save the trip for offline first.');return;}
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){$('#pkScanMsg').textContent=tx('No camera access here. Take a photo of the QR instead.');return;}
+  let stream;try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});}catch(e){$('#pkScanMsg').textContent=tx('No camera access here. Take a photo of the QR instead.');return;}
+  const v=$('#pkVideo');if(!v){stream.getTracks().forEach(t=>t.stop());return;}v.srcObject=stream;await v.play().catch(()=>{});
+  const c=document.createElement('canvas'),g=c.getContext('2d',{willReadFrequently:true});let live=true,raf=0;
+  scanStop=()=>{live=false;cancelAnimationFrame(raf);stream.getTracks().forEach(t=>t.stop());};
+  const tick=()=>{if(!live)return;if(v.readyState>=2&&v.videoWidth){const k=Math.min(1,720/Math.max(v.videoWidth,v.videoHeight));c.width=Math.round(v.videoWidth*k);c.height=Math.round(v.videoHeight*k);g.drawImage(v,0,0,c.width,c.height);
+      const d=g.getImageData(0,0,c.width,c.height),r=jsQR(d.data,c.width,c.height,{inversionAttempts:'dontInvert'});if(r&&r.data&&relayGot(r.data))return;}
+    raf=requestAnimationFrame(tick);};tick();
+}
+async function scanFile(file){
+  try{await loadJsQR();}catch(e){return;}
+  const img=new Image(),url=URL.createObjectURL(file);await new Promise((r,j)=>{img.onload=r;img.onerror=j;img.src=url;}).catch(()=>{});
+  const k=Math.min(1,1400/Math.max(img.width,img.height)),c=document.createElement('canvas');c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);
+  const g=c.getContext('2d');g.drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);const r=jsQR(g.getImageData(0,0,c.width,c.height).data,c.width,c.height);
+  if(!r||!relayGot(r.data)){const m=$('#pkScanMsg');if(m)m.textContent=tx('No QR found in the photo. Try again closer.');}
+}
+
 /* ---------- OFFICE view: the park administration panel ---------- */
 const omap={m:null,g:null,park:null};
 function openOffice(pk,fromHistory){if(pk&&PARKS[pk])cur.office=pk;show('office');markNav('office');renderOffice();if(!fromHistory)push({view:'office',park:cur.office});}
 function renderOffice(){
   const pk=cur.office,P=PARKS[pk],all=srv().filter(r=>r.park===pk),now=Date.now();
   $('#ofTabs').innerHTML=Object.keys(PARKS).map(k=>{const n=srv().filter(r=>r.park===k&&staffJob(r)&&r.status!=='done').length;return `<button class="chip" data-of="${k}" aria-pressed="${k===pk}">${esc(PARKS[k].short)} ${n?`<span class="pk-badge" translate="no">${n}</span>`:''}</button>`;}).join('');
-  $('#ofName').textContent=P.name;
+  $('#ofName').textContent=P.name;$('#ofSample').hidden=false;
   const open=all.filter(r=>staffJob(r)&&r.status!=='done');
   const wc=new Set(open.filter(r=>r.f&&facility(pk,r.f).t==='toilet').map(r=>r.f)).size,bins=new Set(open.filter(r=>r.kind==='full'||(r.f&&facility(pk,r.f).t==='bin'&&r.kind==='litter')).map(r=>r.f)).size;
   const ns=all.filter(r=>r.kind==='nosig'&&now-r.ts<7*24*H).length;
   const done=all.filter(r=>r.status==='done'&&r.doneAt);const fix=done.length?done.reduce((s,r)=>s+(r.doneAt-r.ts),0)/done.length/H:0;
-  const week=all.filter(r=>now-r.ts<7*24*H).length;
-  $('#ofKpi').innerHTML=[[open.length,'Open problems'],[wc,'Toilets to clean'],[bins,'Bins to empty or tidy'],[ns,'No-signal reports, 7 days'],[fix?fix.toFixed(1):'–','Average hours to fix'],[week,'Reports this week']].map(([n,l],i)=>`<div class="pk-kpi${i<3&&n>0?' hot':''}"><b class="num" translate="no">${n}</b><span>${esc(l)}</span></div>`).join('');
+  const cks=checkins().filter(c=>c.park===pk||!c.park),over=cks.filter(c=>c.state==='overdue'),outN=cks.filter(c=>c.state==='out').length;
+  $('#ofKpi').innerHTML=[[over.length,'Overdue visitors'],[open.length,'Open problems'],[wc,'Toilets to clean'],[bins,'Bins to empty or tidy'],[ns,'No-signal reports, 7 days'],[fix?fix.toFixed(1):'–','Average hours to fix']].map(([n,l],i)=>`<div class="pk-kpi${i<4&&n>0?' hot':''}${i===0&&n>0?' alarm':''}"><b class="num" translate="no">${n}</b><span>${esc(l)}</span></div>`).join('');
+  /* safety check-ins: who is out, who is late; the server texts the contact (Twilio), the office sees the last point */
+  $('#ofCk').innerHTML=cks.length?`<ul class="pk-cklist">${cks.sort((a,b)=>(a.state==='overdue'?0:a.state==='out'?1:2)-(b.state==='overdue'?0:b.state==='out'?1:2)||a.due_at-b.due_at).slice(0,8).map(c=>`<li class="pk-ckrow ${c.state}">
+      <span class="pk-st ${c.state==='overdue'?'pk-st-bad':c.state==='out'?'pk-st-warn':'pk-st-ok'}">${c.state==='overdue'?'Overdue':c.state==='out'?'In the park':'Back safe'}</span>
+      <div><b translate="no">${esc(c.name||'')}</b> <small class="muted" translate="no">${esc(c.contact_masked||'')}</small><br>
+      <small class="muted">${c.state==='overdue'?N(LL(`due ${hhmm(c.due_at)}, late by ${dur(now-c.due_at)}`,`应于${hhmm(c.due_at)}返回，已超时${dur(now-c.due_at)}`,`fällig ${hhmm(c.due_at)}, ${dur(now-c.due_at)} zu spät`,`срок ${hhmm(c.due_at)}, опоздание ${dur(now-c.due_at)}`,`мерзімі ${hhmm(c.due_at)}, кешігу ${dur(now-c.due_at)}`)):c.state==='out'?N(LL(`back by ${hhmm(c.due_at)}`,`${hhmm(c.due_at)}前返回`,`zurück bis ${hhmm(c.due_at)}`,`вернуться к ${hhmm(c.due_at)}`,`${hhmm(c.due_at)} дейін оралу`)):N(hhmm(c.back_at||c.due_at))}
+      ${c.last_ts?` · <span>last point</span> ${N(ago(+c.last_ts))}${c.last_src==='relay'?' <span class="pk-tag">via another traveler</span>':''}`:' · <span>no point yet</span>'}</small>
+      ${c.state==='overdue'?`<br><small>${c.sms_sent_at?`<span>SMS sent to the contact</span> ${N(hhmm(c.sms_sent_at))}`:(API?'<span>SMS goes out when the Twilio key is added on the server</span>':'<span>Demo mode: the SMS is sent only with a server</span>')}</small>`:''}</div></li>`).join('')}</ul>`
+    :'<p class="muted">Nobody has started a check-in for this park.</p>';
   /* group open issues by facility (or 80 m cells for spots) and rank: urgency × reports × age */
   const groups={};open.forEach(r=>{const key=r.f||('spot:'+(Math.round(r.lat/.0007))+':'+(Math.round(r.lng/.0009))+':'+r.kind);(groups[key]=groups[key]||{key,f:r.f&&facility(pk,r.f),rs:[]}).rs.push(r);});
   const G=Object.values(groups).map(g=>{const sev=Math.max(...g.rs.map(r=>K[r.kind].sev)),old=Math.min(...g.rs.map(r=>r.ts));const lat=g.rs.reduce((s,r)=>s+r.lat,0)/g.rs.length,lng=g.rs.reduce((s,r)=>s+r.lng,0)/g.rs.length;
@@ -431,13 +637,14 @@ function renderOffice(){
     return `<li class="pk-of${g.work?' work':''}"><span class="pk-mk sm pk-${g.f?g.f.t:'spot'} pk-st-${g.sev>=3?'bad':'warn'}">${ico(g.f?g.f.t:'spot',14)}</span>
      <div class="pk-ofm"><b>${g.f?esc(g.f.n):'<span>Spot on the trail</span>'}</b><div class="pk-ofk">${Object.entries(kinds).map(([k,n])=>`<span class="pk-tag">${esc(K[k].l)}${n>1?` <b translate="no">×${n}</b>`:''}</span>`).join('')}</div>
      <small class="muted"><span>First report</span> ${N(ago(g.old))}${g.rs.some(r=>r.by==='you')?' · <span>includes reports sent from this phone</span>':''}${g.rs.some(r=>r.photo)?' · 📷':''}</small>
+     <div class="pk-ofk">${g.rs.every(r=>r.by==='sample')?'<span class="pk-tag demo">Sample data</span>':`<span class="pk-tag live">${API?'Live':'This browser'}</span>`}${g.rs.some(r=>r.src==='relay')?'<span class="pk-tag">Carried by another traveler</span>':''}</div>
      ${g.rs.filter(r=>r.note||r.photo).slice(0,2).map(r=>`<div class="pk-ofnote">${r.photo?`<img src="${r.photo}" alt="">`:''}${r.note?`<span>“${esc(r.note)}”</span>`:''}</div>`).join('')}</div>
      <div class="pk-ofb">${g.work?'<span class="pk-st pk-st-ok">In progress</span>':`<button class="btn btn-line sm" data-work="${g.rs.map(r=>r.id).join(',')}">Send staff</button>`}<button class="btn btn-gold sm" data-done="${g.rs.map(r=>r.id).join(',')}">Mark fixed</button></div></li>`;}).join(''):'<li class="muted">No open problems. Good work.</li>';
   /* service round: nearest-neighbour route from the ranger post through toilets and bins that need work */
   const stops=G.filter(g=>g.f&&(g.f.t==='toilet'||g.f.t==='bin'||g.f.t==='water')),gate=P.f.find(f=>f.t==='ranger');let pos=gate,route=[],len=0;const left=stops.slice();
   while(left.length){let bi=0,bm=1e12;left.forEach((s,i)=>{const m=dist(pos.lat,pos.lng,s.lat,s.lng);if(m<bm){bm=m;bi=i;}});len+=bm;pos=left[bi];route.push(left.splice(bi,1)[0]);}
   if(route.length)len+=dist(pos.lat,pos.lng,gate.lat,gate.lng);
-  $('#ofRound').innerHTML=route.length?`<ol class="pk-round"><li><b>${esc(gate.n)}</b></li>${route.map(s=>`<li><b>${esc(s.f.n)}</b> <small class="muted">${[...new Set(s.rs.map(r=>K[r.kind].l))].map(x=>`<span>${esc(x)}</span>`).join(', ')}</small></li>`).join('')}<li><span>Back to</span> <b>${esc(gate.n)}</b></li></ol><p class="muted"><span>About</span> ${N(fmtDist(len))} <span>on foot</span>, ${N(LL(`${route.length} stops`,`${route.length}个站点`,`${route.length} Stationen`))}.</p>`:'<p class="muted">Nothing to service right now.</p>';
+  $('#ofRound').innerHTML=route.length?`<ol class="pk-round"><li><b>${esc(gate.n)}</b></li>${route.map(s=>`<li><b>${esc(s.f.n)}</b> <small class="muted">${[...new Set(s.rs.map(r=>K[r.kind].l))].map(x=>`<span>${esc(x)}</span>`).join(', ')}</small></li>`).join('')}<li><span>Back to</span> <b>${esc(gate.n)}</b></li></ol><p class="muted"><span>About</span> ${N(fmtDist(len))} <span>on foot</span>, ${N(LL(`${route.length} stops`,`${route.length}个站点`,`${route.length} Stationen`,`${route.length} ${['точка','точки','точек'][route.length%10===1&&route.length%100!==11?0:route.length%10>1&&route.length%10<5&&(route.length%100<10||route.length%100>20)?1:2]}`,`${route.length} нүкте`))}.</p>`:'<p class="muted">Nothing to service right now.</p>';
   /* chart: reports by kind, 7 days */
   const by={};all.filter(r=>now-r.ts<7*24*H).forEach(r=>by[r.kind]=(by[r.kind]||0)+1);const mx=Math.max(1,...Object.values(by));
   $('#ofChart').innerHTML=Object.keys(K).filter(k=>by[k]).sort((a,b)=>by[b]-by[a]).map(k=>`<div class="pk-bar"><span>${esc(K[k].l)}</span><i style="--w:${(by[k]/mx*100).toFixed(1)}%" class="${K[k].sev?'':'good'}"></i><b class="num" translate="no">${by[k]}</b></div>`).join('')||'<p class="muted">No reports this week.</p>';
@@ -447,7 +654,7 @@ function renderOffice(){
   /* signal gaps for the mobile operator: where visitors had no signal */
   const gaps={};all.filter(r=>r.kind==='nosig').forEach(r=>{const k=Math.round(r.lat/.0018)+':'+Math.round(r.lng/.0024);(gaps[k]=gaps[k]||{n:0,lat:0,lng:0});gaps[k].n++;gaps[k].lat+=r.lat;gaps[k].lng+=r.lng;});
   const GP=Object.values(gaps).map(g=>({n:g.n,lat:g.lat/g.n,lng:g.lng/g.n})).sort((a,b)=>b.n-a.n);
-  $('#ofGaps').innerHTML=GP.length?`<ul class="pk-gaps">${GP.slice(0,5).map(g=>`<li>${ico('nosig',16)} <b translate="no">${g.lat.toFixed(4)}, ${g.lng.toFixed(4)}</b> <span class="muted">·</span> ${N(LL(`${g.n} report${g.n>1?'s':''}`,`${g.n}条反馈`,`${g.n} Meldung${g.n>1?'en':''}`))}</li>`).join('')}</ul><button class="btn btn-line sm" data-csv>Download for the mobile operator (CSV)</button>`:'<p class="muted">No signal gaps reported.</p>';
+  $('#ofGaps').innerHTML=GP.length?`<ul class="pk-gaps">${GP.slice(0,5).map(g=>`<li>${ico('nosig',16)} <b translate="no">${g.lat.toFixed(4)}, ${g.lng.toFixed(4)}</b> <span class="muted">·</span> ${N(LL(`${g.n} report${g.n>1?'s':''}`,`${g.n}条反馈`,`${g.n} Meldung${g.n>1?'en':''}`,`отметок: ${g.n}`,`белгі: ${g.n}`))}</li>`).join('')}</ul><button class="btn btn-line sm" data-csv>Download for the mobile operator (CSV)</button>`:'<p class="muted">No signal gaps reported.</p>';
   /* map */
   if(window.L&&online()){$('#ofMap').hidden=false;$('#ofPlan').hidden=true;
     if(!omap.m){omap.m=L.map('ofMap',{scrollWheelZoom:false});L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(omap.m);}
@@ -456,6 +663,7 @@ function renderOffice(){
     P.f.forEach(f=>L.circleMarker([f.lat,f.lng],{radius:4,color:'#5A6B7B',weight:1,fillOpacity:.6}).addTo(omap.g).bindTooltip(tx(f.n)));
     GP.forEach(g=>L.circle([g.lat,g.lng],{radius:60+g.n*20,color:'#7a7f87',weight:1,dashArray:'4 4',fillOpacity:.12,interactive:false}).addTo(omap.g));
     G.forEach(g=>L.circleMarker([g.lat,g.lng],{radius:8+Math.min(18,g.rs.length*3),color:g.sev>=3?'#C2453A':'#D99A1E',weight:2,fillOpacity:.35}).addTo(omap.g).bindTooltip(`${g.f?tx(g.f.n):tx('Spot on the trail')} · ${g.rs.length}`));
+    cks.filter(c=>c.last_lat!=null&&c.state!=='back').forEach(c=>L.marker([c.last_lat,c.last_lng],{icon:L.divIcon({className:'',html:`<span class="pk-person ${c.state}" aria-hidden="true">${esc((c.name||'?')[0])}</span>`,iconSize:[30,30],iconAnchor:[15,15]})}).addTo(omap.g).bindTooltip(`${c.name} · ${tx(c.state==='overdue'?'Overdue':'In the park')}`));
     setTimeout(()=>omap.m.invalidateSize(),60);
   }else{$('#ofMap').hidden=true;$('#ofPlan').hidden=false;$('#ofPlan').innerHTML=parkSvg(pk,{crowd:all.filter(r=>r.kind==='nosig')}).svg;}
   paintNet();
@@ -501,8 +709,8 @@ document.addEventListener('click',async e=>{
   if(q('[data-close]')||q('[data-cancel]')){cur.sel=null;cur.mode=null;cur.spot=null;renderParks();return;}
   if(q('[data-spot]')){cur.sel=null;cur.mode='spot';cur.spot=nearPark(cur.park)?{lat:me.lat,lng:me.lng,gps:1}:(pmap.m&&!$('#pkMap').hidden?(c=>({lat:c.lat,lng:c.lng}))(pmap.m.getCenter()):null);
     if(!cur.spot){const P=PARKS[cur.park];cur.spot={lat:P.c[0],lng:P.c[1]};}renderParks();return;}
-  if(q('[data-gps]')||q('[data-locate]')){locate(p=>{if(!p)pkToast(N(LL('Location is off or not allowed. Turn it on to see where you are.','定位未开启或未授权，请开启以查看您的位置。','Standort ist aus oder nicht erlaubt. Schalten Sie ihn ein, um zu sehen, wo Sie sind.')));else if(!nearPark(cur.park)&&!$('#view-parks').hidden)pkToast(N(LL('You are not in this park now, so distances are counted from the entrance.','您现在不在这个公园里，所以距离从入口算起。','Sie sind gerade nicht in diesem Park, daher zählen die Entfernungen ab dem Eingang.')));rerender();});return;}
-  if(q('[data-sync]')){if(!online())pkToast(N(LL('Still no signal. Reports stay on your phone and go out automatically.','仍然没有信号。反馈保存在手机上，会自动发送。','Noch kein Netz. Die Meldungen bleiben auf dem Handy und gehen automatisch raus.')));else sync();return;}
+  if(q('[data-gps]')||q('[data-locate]')){locate(p=>{if(!p)pkToast(N(LL('Location is off or not allowed. Turn it on to see where you are.','定位未开启或未授权，请开启以查看您的位置。','Standort ist aus oder nicht erlaubt. Schalten Sie ihn ein, um zu sehen, wo Sie sind.','Геолокация выключена или запрещена. Включите её, чтобы видеть, где вы.','Геолокация өшірулі немесе рұқсат жоқ. Қай жерде екеніңізді көру үшін қосыңыз.')));else if(!nearPark(cur.park)&&!$('#view-parks').hidden)pkToast(N(LL('You are not in this park now, so distances are counted from the entrance.','您现在不在这个公园里，所以距离从入口算起。','Sie sind gerade nicht in diesem Park, daher zählen die Entfernungen ab dem Eingang.','Вы сейчас не в этом парке, поэтому расстояния считаются от входа.','Сіз қазір бұл саябақта емессіз, сондықтан қашықтық кіреберістен есептеледі.')));rerender();});return;}
+  if(q('[data-sync]')){if(!online())pkToast(N(LL('Still no signal. Reports stay on your phone and go out automatically.','仍然没有信号。反馈保存在手机上，会自动发送。','Noch kein Netz. Die Meldungen bleiben auf dem Handy und gehen automatisch raus.','Связи всё ещё нет. Отметки сохранены в телефоне и уйдут автоматически.','Байланыс әлі жоқ. Белгілер телефонда сақталған және автоматты түрде жіберіледі.')));else sync();return;}
   if(b=q('[data-savepack]')){savePack(b.dataset.savepack);return;}
   if(b=q('[data-unpack]')){removePack(b.dataset.unpack);renderPack(b.dataset.unpack);paintHome();return;}
   if(b=q('#dOffline')){const tid=b.dataset.tid;if(b.dataset.saved)openPack(tid);else{savePack(tid);}return;}
@@ -511,19 +719,29 @@ document.addEventListener('click',async e=>{
   if(b=q('[data-openpark]')){e.preventDefault();openParks(b.dataset.openpark);return;}
   if((b=q('[data-tour]'))&&b.closest('#view-parks')){openTour(b.dataset.tour);return;}
   if(b=q('[data-work]')){setStatus(b.dataset.work.split(','),'work');return;}
-  if(b=q('[data-done]')){setStatus(b.dataset.done.split(','),'done');pkToast(`✓ ${N(LL('Marked fixed. Visitors see it on the map.','已标记为已修复，游客会在地图上看到。','Als behoben markiert. Besucher sehen es auf der Karte.'))}`);return;}
+  if(b=q('[data-done]')){setStatus(b.dataset.done.split(','),'done');pkToast(`✓ ${N(LL('Marked fixed. Visitors see it on the map.','已标记为已修复，游客会在地图上看到。','Als behoben markiert. Besucher sehen es auf der Karte.','Отмечено как исправленное. Посетители увидят это на карте.','Түзетілді деп белгіленді. Келушілер мұны картадан көреді.'))}`);return;}
   if(q('[data-csv]')){csv();return;}
+  if(b=q('[data-relay]')){b.dataset.relay==='show'?showRelay():scanRelay();return;}
+  if(b=q('[data-ck]')){if(b.dataset.ck==='back'){ckBack();pkToast(`✓ ${N(LL('Welcome back! The alarm is off.','欢迎回来！警报已取消。','Willkommen zurück! Der Alarm ist aus.','С возвращением! Тревога отключена.','Қош келдіңіз! Дабыл өшірілді.'))}`);}
+    else{const ck=myCk();if(ck){ck.due+=H;save(CK,ck);ckQueue({op:'start',id:ck.id,name:ck.name,contact:ck.contact,park:ck.park,tour:ck.tour,due:ck.due,lat:null,lng:null,ts:null});sync();}}rerender();return;}
   if(q('.pk-sim')){toggleSim();return;}
   if(b=q('[data-goview]')){const v=b.dataset.goview;if(v==='parks')openParks();else if(v==='office')openOffice();return;}
 });
+document.addEventListener('submit',e=>{const f=e.target.closest('[data-ckform]');if(!f)return;e.preventDefault();
+  const name=$('#ckName').value.trim(),phone=$('#ckPhone').value.trim(),due=new Date($('#ckDue').value).getTime();
+  if(!name||!/^\+?[0-9 ()-]{6,20}$/.test(phone)){pkToast(N(LL('Enter your name and a phone number for the SMS.','请填写姓名和接收短信的电话号码。','Geben Sie Ihren Namen und eine Telefonnummer für die SMS ein.','Введите имя и номер телефона для SMS.','Атыңызды және SMS үшін телефон нөмірін енгізіңіз.')));return;}
+  if(!(due>Date.now()+5*6e4)){pkToast(N(LL('Pick a time later than now.','请选择晚于现在的时间。','Wählen Sie eine spätere Zeit.','Выберите время позже текущего.','Қазіргіден кейінгі уақытты таңдаңыз.')));return;}
+  save('sr_ck_name',name);save('sr_ck_phone',phone);const tid=f.dataset.ckform;
+  ckStart({name,contact:phone,due,park:PARK_OF[tid]||null,tour:tid});locate();
+  pkToast(online()?`✓ ${N(LL('Check-in started. Have a good walk!','已开始报平安计时，祝您徒步愉快！','Check-in gestartet. Gute Wanderung!','Отметка начата. Хорошей прогулки!','Белгі басталды. Серуеніңіз сәтті болсын!'))}`:`⏳ ${N(LL('Saved. It reaches the server when there is signal.','已保存，有信号时会发送到服务器。','Gespeichert. Erreicht den Server, sobald es Netz gibt.','Сохранено. Уйдёт на сервер, когда появится связь.','Сақталды. Байланыс болғанда серверге жіберіледі.'))}`);
+  rerender();});
 document.addEventListener('change',async e=>{
+  if(e.target.id==='pkQrFile'&&e.target.files[0]){scanFile(e.target.files[0]);return;}
   if(e.target.id==='pkPhoto'&&e.target.files[0]){try{cur.photo=await readPhoto(e.target.files[0]);}catch(x){cur.photo=null;}const n=$('#pkNote')&&$('#pkNote').value;renderPanel();const d=$('#pkPanel details');if(d)d.open=true;if(n&&$('#pkNote'))$('#pkNote').value=n;}
   if(e.target.dataset&&e.target.dataset.lnt!==undefined&&cur.pack){const k='sr_lnt_'+cur.pack,v=load(k,[]);v[+e.target.dataset.lnt]=e.target.checked;save(k,v);}
 });
 $('#lang')&&$('#lang').addEventListener('change',()=>setTimeout(rerender,0));
 
-/* translations of everything above that the page translator sees */
-Object.assign(I18N,PK_I18N);
 
 /* service worker: makes the site and saved trips open with no signal */
 if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)){

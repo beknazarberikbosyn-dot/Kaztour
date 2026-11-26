@@ -127,7 +127,7 @@ setTimeout(function(){if(d.classList.contains('intro-pending')){d.classList.remo
 <meta name="theme-color" content="#0A84A6">
 <link rel="apple-touch-icon" href="assets/parks/icon-192.png">
 <style>
-/* Layout: sticky header → steppe hero with trip planner → tour cards → trust block; tour page and booking flow are separate views with a summary rail; AI assistant floats bottom-right */
+/* Layout: sticky header → steppe hero with trip planner → tour cards → trust block; tour page and booking flow are separate views with a summary rail; trip helper floats bottom-right */
 :root{
   --bg:#F3F6F8; --surface:#FFFFFF; --surface-2:#EAF0F4; --ink:#13283D; --muted:#5A6B7B; --line:#D8E1E8;
   --sky:#0A84A6; --sky-soft:#DDF0F6; --gold:#E9B32C; --on-gold:#2A1E00; --ok:#0A84A6; --ok-soft:#DDF0F6;
@@ -325,7 +325,7 @@ section.block{padding-block:48px}
 .checklist label{display:flex;gap:10px;align-items:center;cursor:pointer}
 .checklist input{accent-color:var(--ok);width:18px;height:18px}
 
-/* AI assistant */
+/* trip helper Aru */
 .fab{position:fixed;right:calc(18px + env(safe-area-inset-right,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:30;background:none;border:0;padding:0;cursor:pointer;display:flex;gap:10px;align-items:flex-end;color:var(--ink)}
 .fab .hint{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:14px 14px 4px 14px;padding:9px 13px;font-size:14px;font-weight:600;box-shadow:var(--shadow);margin-bottom:46px;white-space:nowrap}
 .ava-wrap{display:block;width:80px;height:80px;border-radius:50%;box-shadow:var(--shadow);border:3px solid var(--surface);animation:bob 3.2s ease-in-out infinite}
@@ -694,7 +694,7 @@ html.intro-done .fab{animation:skyFade .8s .5s ease both}
       <button data-view="search" class="nav-search" data-i18n="navSearch">Search</button>
     </nav>
     <div class="prefs">
-      <select id="lang" aria-label="Language"><option value="en">EN</option><option value="de">DE</option><option value="zh">中文</option></select>
+      <select id="lang" aria-label="Language"><option value="kk">ҚАЗ</option><option value="ru">РУС</option><option value="en">EN</option><option value="de">DE</option><option value="zh">中文</option></select>
       <select id="cur" aria-label="Currency"><option value="USD">$ USD</option><option value="EUR">€ EUR</option><option value="CNY">¥ CNY</option><option value="KZT">₸ KZT</option></select>
     </div>
   </div>
@@ -712,19 +712,19 @@ html.intro-done .fab{animation:skyFade .8s .5s ease both}
           <a class="hero-credit" id="heroCredit" href="https://commons.wikimedia.org" target="_blank" rel="noopener">Photo: Big Almaty Lake, Wikimedia Commons</a>
         </div>
         <div class="hero-copy">
-        <div class="eyebrow" data-i18n="heroEyebrow">Guided trips across Kazakhstan</div>
-        <h1 data-i18n="heroTitle">Canyons, mountain lakes and Silk Road cities. Booked in two minutes.</h1>
-        <p class="lead" data-i18n="heroLead">Clear prices in your currency, a full list of what's included, and secure payment with your own card.</p>
+        <div class="eyebrow" data-i18n="heroEyebrow">Kazakhstan on your own, even with no signal</div>
+        <h1 data-i18n="heroTitle">Canyons, mountain lakes and Silk Road cities. Go on your own, with local hosts.</h1>
+        <p class="lead" data-i18n="heroLead">An offline guide for independent travellers: the route, park toilets, water and signal, and SOS all work without internet. Book guides, drivers and guesthouses directly with local hosts, with no agency in between.</p>
         <div class="hero-points">
-          <span class="chip-dark" data-i18n="p1">Pay with Visa, Mastercard, Apple Pay</span>
-          <span class="chip-dark" data-i18n="p2">Free cancellation up to 7 days</span>
-          <span class="chip-dark" data-i18n="p3">24/7 AI assistant</span>
+          <span class="chip-dark" data-i18n="p1">Works with no signal</span>
+          <span class="chip-dark" data-i18n="p2">Hosts paid directly</span>
+          <span class="chip-dark" data-i18n="p3">Alarm if you do not check in</span>
         </div>
         </div>
       </div>
       <div class="planner" id="planner">
         <div>
-          <div class="eyebrow" data-i18n="planEyebrow">AI trip planner</div>
+          <div class="eyebrow" data-i18n="planEyebrow">Trip planner</div>
           <h3 style="margin-top:4px" data-i18n="planTitle">Tell us your days and interests</h3>
         </div>
         <div class="row">
@@ -751,11 +751,31 @@ html.intro-done .fab{animation:skyFade .8s .5s ease both}
     <div class="belt" data-dir="right"></div>
   </section>
 
+  <section class="block" id="parksinfo" aria-labelledby="pkhTitle">
+    <div class="wrap pk-home">
+      <div class="pk-home-txt">
+        <div class="eyebrow">Works with no signal</div>
+        <h2 id="pkhTitle">Toilets, water and signal: know before you go</h2>
+        <p class="lead">Tourism in our national parks grows faster than their services. Kolsai has no stable mobile signal, and visitors complain about toilets and litter. So every trip now works offline, shows where the facilities are, and lets you tell the park about a problem in one tap.</p>
+        <div class="pk-hfeat">
+          <div><b>Offline trip pack</b><span>Ticket QR, programme, SOS numbers, a park plan with your GPS position and Kazakh phrases. Opens with no signal.</span></div>
+          <div><b>Facilities map</b><span>Toilets, bins, water, first aid and where the signal is, with live status from other visitors.</span></div>
+          <div><b>One-tap reports</b><span>"Bin is full", "No signal here". Saved on your phone and sent when the signal returns.</span></div>
+          <div><b>Park office panel</b><span>Rangers see hotspots, send staff, get a cleaning round and a map of signal gaps for mobile operators.</span></div>
+          <div><b>Safety check-in</b><span>Say when you will be back. If you are late, your contact gets an SMS with your last point.</span></div>
+          <div><b>Relay by QR</b><span>No signal? Pass your reports and last point to a traveler you meet; their phone sends them later.</span></div>
+        </div>
+        <div class="pk-hbtn"><button class="btn btn-gold" data-goview="parks">Open the park map</button><button class="btn btn-line" data-goview="office">Park office panel</button></div>
+        <div id="hpPacks" class="pk-hpacks"></div>
+      </div>
+      <div class="pk-hstats" id="hpStats"></div>
+    </div>
+  </section>
   <section class="block" id="tours">
     <div class="wrap">
       <div class="section-head">
-        <div><div class="eyebrow" data-i18n="toursEyebrow">Our routes</div><h2 data-i18n="toursTitle">Ten trips, one clear price each</h2></div>
-        <p class="muted" data-i18n="toursLead">Every price is per traveler and already includes the guide, transport, meals and entrance fees. Nothing is added at checkout.</p>
+        <div><div class="eyebrow" data-i18n="toursEyebrow">Ready-made routes</div><h2 data-i18n="toursTitle">Ten routes you can do on your own</h2></div>
+        <p class="muted" data-i18n="toursLead">Each route comes with an offline pack. The price is what local hosts charge for the guide, transport, stay, meals and park fees, per traveler; you pay the hosts, not an agency.</p>
       </div>
       <div class="tours" id="tourGrid"></div>
     </div>
@@ -773,42 +793,24 @@ html.intro-done .fab{animation:skyFade .8s .5s ease both}
     </div>
   </section>
 
-  <section class="block" id="parksinfo" aria-labelledby="pkhTitle">
-    <div class="wrap pk-home">
-      <div class="pk-home-txt">
-        <div class="eyebrow">Parks without stress</div>
-        <h2 id="pkhTitle">Toilets, water and signal: know before you go</h2>
-        <p class="lead">Tourism in our national parks grows faster than their services. Kolsai has no stable mobile signal, and visitors complain about toilets and litter. So every trip now works offline, shows where the facilities are, and lets you tell the park about a problem in one tap.</p>
-        <div class="pk-hfeat">
-          <div><b>Offline trip pack</b><span>Ticket QR, programme, SOS numbers, a park plan with your GPS position and Kazakh phrases. Opens with no signal.</span></div>
-          <div><b>Facilities map</b><span>Toilets, bins, water, first aid and where the signal is, with live status from other visitors.</span></div>
-          <div><b>One-tap reports</b><span>"Bin is full", "No signal here". Saved on your phone and sent when the signal returns.</span></div>
-          <div><b>Park office panel</b><span>Rangers see hotspots, send staff, get a cleaning round and a map of signal gaps for mobile operators.</span></div>
-        </div>
-        <div class="pk-hbtn"><button class="btn btn-gold" data-goview="parks">Open the park map</button><button class="btn btn-line" data-goview="office">Park office panel</button></div>
-        <div id="hpPacks" class="pk-hpacks"></div>
-      </div>
-      <div class="pk-hstats" id="hpStats"></div>
-    </div>
-  </section>
   <section class="block" id="trust">
     <div class="wrap trust">
       <div>
-        <div class="eyebrow" data-i18n="trustEyebrow">Why trust us</div>
-        <h2 data-i18n="trustTitle">A registered Astana company, not a stranger on Instagram</h2>
+        <div class="eyebrow" data-i18n="trustEyebrow">Why trust the hosts</div>
+        <h2 data-i18n="trustTitle">Checked local hosts, not strangers on Instagram</h2>
         <div class="stats">
-          <div class="stat"><b class="num" data-count="2020" data-plain="1">2020</b><span>Founded in Astana</span></div>
-          <div class="stat"><b class="num" data-count="3400">3,400</b><span>Travelers in 2025</span></div>
-          <div class="stat"><b class="num" data-count="25">25</b><span>Local guides</span></div>
+          <div class="stat"><b class="num" data-count="5">5</b><span>National parks mapped</span></div>
+          <div class="stat"><b class="num" data-count="10">10</b><span>Routes with offline packs</span></div>
+          <div class="stat"><b class="num" data-count="25">25</b><span>Local hosts and guides (sample)</span></div>
         </div>
         <div class="policy">
-          <div><span class="tick">✓</span><span><b>Free cancellation</b> up to 7 days before departure. Full refund to your card.</span></div>
-          <div><span class="tick">✓</span><span><b>Secure payment.</b> Card details go to the payment provider. We never see or store them.</span></div>
-          <div><span class="tick">✓</span><span><b>Licensed tour operator.</b> Licence number shown on every confirmation (sample: TO-000000).</span></div>
+          <div><span class="tick">✓</span><span><b>No middleman.</b> You book and pay the guide, driver and guesthouse directly; the price is theirs.</span></div>
+          <div><span class="tick">✓</span><span><b>Free cancellation</b> up to 7 days before departure, refunded by the host to your card.</span></div>
+          <div><span class="tick">✓</span><span><b>Checked hosts.</b> Guides show their licence, guesthouses their registration; we check them in person (sample data in this prototype).</span></div>
         </div>
       </div>
       <div>
-        <h3>Meet some of our guides</h3>
+        <h3>Meet some of the hosts</h3>
         <div class="guides" id="guideList" style="margin-top:12px"></div>
       </div>
     </div>
@@ -817,7 +819,7 @@ html.intro-done .fab{animation:skyFade .8s .5s ease both}
   <section class="block" id="reviews">
     <div class="wrap">
       <div class="section-head">
-        <div><div class="eyebrow">What travelers say</div><h2>Guests from abroad on our trips</h2></div>
+        <div><div class="eyebrow">What travelers say <span class="demo-tag">Sample</span></div><h2>Travelers who went with these hosts</h2></div>
         <div class="rating-sum" id="ratingSum"></div>
       </div>
       <div class="legend" id="revFilter"></div>
@@ -931,7 +933,7 @@ html.intro-done .fab{animation:skyFade .8s .5s ease both}
   <div class="wrap">
     <div class="done-hero">
       <div class="big-tick">✓</div>
-      <h1 style="font-size:clamp(26px,4vw,38px)">Your trip is booked</h1>
+      <h1 style="font-size:clamp(26px,4vw,38px)">Your hosts confirmed the trip</h1>
       <p class="muted" id="cLine"></p>
       <span class="code num" id="cCode"></span>
     </div>
@@ -962,8 +964,8 @@ html.intro-done .fab{animation:skyFade .8s .5s ease both}
   <div class="wrap">
     <button class="back" data-go="home">← Home</button>
     <div class="pk-top">
-      <div><div class="eyebrow">Park facilities map</div><h1 id="pkName"></h1></div>
-      <div class="pk-topr"><span class="pk-net"></span><button class="chip pk-sim" aria-pressed="false">Test without signal</button></div>
+      <div><div class="eyebrow">Park facilities map <span class="demo-tag">Demo data</span></div><h1 id="pkName"></h1></div>
+      <div class="pk-topr"><span class="pk-mode"></span><span class="pk-net"></span><button class="chip pk-sim" aria-pressed="false">Test without signal</button></div>
     </div>
     <div class="pk-tabs" id="pkTabs" role="tablist" aria-label="Parks"></div>
     <div class="pk-facts" id="pkFacts"></div>
@@ -977,10 +979,11 @@ html.intro-done .fab{animation:skyFade .8s .5s ease both}
       <aside class="pk-side">
         <div class="pk-panel" id="pkPanel" aria-live="polite"></div>
         <div class="pk-panel" id="pkOutbox" hidden></div>
+        <div id="pkRelay"></div>
         <div class="pk-sidebtns"><span id="pkPack"></span><span id="pkTour"></span></div>
       </aside>
     </div>
-    <p class="src pk-note">Prototype: positions of facilities are approximate. Reports are kept in this browser and appear in the park office panel; a real version sends them to the park's server. The office panel also shows sample reports, so you can see a busy week.</p>
+    <p class="src pk-note"><b>Demo data.</b> Positions of toilets, bins, taps and signal zones are approximate, drawn for the prototype, not surveyed. With a server connected, reports go to it and every phone and the park office see them; without one they stay in this browser. Reports marked as sample are made up to show a busy week.</p>
   </div>
 </div>
 
@@ -990,18 +993,20 @@ html.intro-done .fab{animation:skyFade .8s .5s ease both}
     <button class="back" data-go="home">← Home</button>
     <div class="pk-top">
       <div><div class="eyebrow">Park office panel <span class="demo-tag">Demo</span></div><h1 id="ofName"></h1></div>
-      <div class="pk-topr"><span class="pk-net"></span><button class="btn btn-line sm" data-goview="parks">Visitor map</button></div>
+      <div class="pk-topr"><span class="pk-mode"></span><span class="pk-net"></span><button class="btn btn-line sm" data-goview="parks">Visitor map</button></div>
     </div>
     <div class="pk-tabs" id="ofTabs" role="group" aria-label="Parks"></div>
     <div class="pk-kpis" id="ofKpi"></div>
+    <p class="src pk-note" id="ofSample" hidden>Sample reports are made up to show a busy week and are marked "Sample data"; live ones come from visitors' phones. The panel has no login in this prototype.</p>
     <div class="pk-ofgrid">
+      <section class="pk-card pk-wide pk-ckcard"><h3>Safety check-ins</h3><p class="muted pk-small">Visitors who said when they will be back. If someone is late, the server texts their contact the last known point.</p><div id="ofCk"></div></section>
       <section class="pk-card pk-wide"><h3>Hotspots</h3><p class="muted pk-small">Circles grow with the number of open reports. Grey dashed circles are places with no signal.</p><div class="map pk-map" id="ofMap" role="region" aria-label="Map of reported problems"></div><div id="ofPlan" hidden></div></section>
       <section class="pk-card pk-wide"><h3>Open problems, most urgent first</h3><ul class="pk-oflist" id="ofList"></ul></section>
       <section class="pk-card"><h3>Service round for the cleaner</h3><div id="ofRound"></div></section>
       <section class="pk-card"><h3>Reports this week</h3><div class="pk-days" id="ofDays"></div><div class="pk-bars" id="ofChart"></div></section>
       <section class="pk-card"><h3>Signal gaps</h3><p class="muted pk-small">Where visitors had no signal. Share it with mobile operators to plan new masts.</p><div id="ofGaps"></div></section>
     </div>
-    <p class="src pk-note">Demo panel: sample reports plus the reports sent from this browser. Open the visitor map in another tab and report something: it appears here.</p>
+    <p class="src pk-note">Try it: on a phone, open the visitor map, switch on airplane mode, report a problem, switch the network back on. With the server connected, the report appears here within a few seconds.</p>
   </div>
 </div>
 
@@ -1018,7 +1023,7 @@ html.intro-done .fab{animation:skyFade .8s .5s ease both}
   <div class="wrap">
     <div>
       <div class="eyebrow">Contact us</div>
-      <h2 id="contactTitle">Talk to a real manager <span class="demo-tag">Demo</span></h2>
+      <h2 id="contactTitle">Talk to a person <span class="demo-tag">Demo</span></h2>
       <p class="lead">Questions about a trip, a visa or a group booking? Write to us in English, Chinese, Russian or Kazakh.</p>
       <div class="hours"><span><b>Managers:</b> every day, 08:00–22:00 (Astana time)</span><span><b>Call center:</b> 24/7</span><span><b>Average reply:</b> about 5 minutes</span></div>
     </div>
@@ -1036,10 +1041,10 @@ html.intro-done .fab{animation:skyFade .8s .5s ease both}
 
 <footer><div class="wrap">Contacts on this page are not real; they show how the contact block would look. Samruk Travel · Astana, Kazakhstan · Concept prototype. Not a real company.<p class="credits" style="margin-top:8px">Photos from Wikimedia Commons, used under their free licences; authors and licences are on each file page: <a href="https://commons.wikimedia.org/wiki/File:Big_Almaty_Lake_(2511_m)_and_snowy_peak_of_Soviets_(4317_m)_in_September,_2,_2017.jpg" target="_blank" rel="noopener">Big Almaty Lake</a> · <a href="https://commons.wikimedia.org/wiki/File:Charyn_Canyon,_Kazakhstan_02.jpg" target="_blank" rel="noopener">Charyn Canyon</a> · <a href="https://commons.wikimedia.org/wiki/File:Kolsai_lake.jpg" target="_blank" rel="noopener">Kolsai Lake</a> · <a href="https://commons.wikimedia.org/wiki/File:Mausoleum_of_Khoja_Ahmed_Yasavi_in_Turkestan,_Kazakhstan.jpg" target="_blank" rel="noopener">Mausoleum of Khoja Ahmed Yasawi</a> · <a href="https://commons.wikimedia.org/wiki/File:%D0%91%D0%BE%D1%80%D0%BE%D0%B2%D0%BE%D0%B5-201007.jpg" target="_blank" rel="noopener">Lake Burabay</a>. Gallery photos link to their own file pages.</p><p class="credits" style="margin-top:8px">Intro animation: Earth textures (NASA Blue Marble and Black Marble imagery) from the <a href="https://github.com/vasturiano/three-globe" target="_blank" rel="noopener">three-globe</a> examples, cloud map from <a href="https://github.com/turban/webgl-earth" target="_blank" rel="noopener">webgl-earth</a>, Kazakhstan border from <a href="https://www.naturalearthdata.com/" target="_blank" rel="noopener">Natural Earth</a>. The airliner was modelled in Blender for this site. Virtual tour narration: voice generated with <a href="https://elevenlabs.io" target="_blank" rel="noopener">ElevenLabs</a>. QR codes: <a href="https://github.com/kazuhikoarase/qrcode-generator" target="_blank" rel="noopener">qrcode-generator</a> by Kazuhiko Arase (MIT). Park plans and facilities are approximate prototype data.</p></div></footer>
 
-<!-- AI assistant -->
-<button class="fab" id="fab" aria-expanded="false" aria-controls="chat" aria-label="Ask Aru the camel, our AI travel guide"><span class="hint" data-i18n="fab">Hi, I'm Aru! Ask me anything</span><span class="ava-wrap" data-camel></span></button>
-<div class="chat" id="chat" hidden role="dialog" aria-label="AI travel assistant">
-  <div class="chat-head"><div class="who"><span class="head-ava" data-camel></span><div><b>Aru the camel · AI travel guide</b><small>Answers in seconds · a human takes over when needed</small></div></div><button id="chatClose" aria-label="Close">×</button></div>
+<!-- trip helper Aru (scripted, not an AI model) -->
+<button class="fab" id="fab" aria-expanded="false" aria-controls="chat" aria-label="Ask Aru the camel, our trip helper"><span class="hint" data-i18n="fab">Hi, I'm Aru! Ask me anything</span><span class="ava-wrap" data-camel></span></button>
+<div class="chat" id="chat" hidden role="dialog" aria-label="Trip helper chat">
+  <div class="chat-head"><div class="who"><span class="head-ava" data-camel></span><div><b>Aru the camel · trip helper</b><small>Ready answers from our trip facts, not an AI model · a person takes over when needed</small></div></div><button id="chatClose" aria-label="Close">×</button></div>
   <div class="msgs" id="msgs" aria-live="polite"></div>
   <div class="quick" id="quick"></div>
   <form id="chatForm"><input id="chatIn" placeholder="Ask anything about the trips…" autocomplete="off" aria-label="Your message"><button type="submit">Send</button></form>
@@ -1113,6 +1118,9 @@ html.intro-done .fab{animation:skyFade .8s .5s ease both}
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="assets/parks/config.js"></script>
+<script src="assets/parks/i18n.js"></script>
+<script src="assets/i18n/ru-kk.js"></script>
 <script>
 /* ---------- data ---------- */
 const RATES={KZT:1,USD:452.59,EUR:525,CNY:63.6}; // fixed demo rates, not live (USD: National Bank, 20 Oct 2026; EUR and CNY approximate)
@@ -1361,7 +1369,7 @@ const REVIEWS=[
 
 /* ---------- state ---------- */
 const st={cur:'USD',lang:'en',tour:null,step:0,date:null,people:2,name:'Alex Morgan',email:'alex@example.com',country:'Germany',pay:'card'};
-try{const c=localStorage.getItem('sr_cur');if(c&&RATES[c])st.cur=c;const l=localStorage.getItem('sr_lang');if(l)st.lang=l;}catch(e){}
+try{const c=localStorage.getItem('sr_cur');if(c&&RATES[c])st.cur=c;const ql=new URLSearchParams(location.search).get('lang'),l=['en','ru','kk','de','zh'].includes(ql)?ql:localStorage.getItem('sr_lang');if(l)st.lang=l;else{const nl=(navigator.language||'').toLowerCase();if(nl.startsWith('kk'))st.lang='kk';else if(nl.startsWith('ru'))st.lang='ru';}if(!c&&(st.lang==='ru'||st.lang==='kk'))st.cur='KZT';}catch(e){}
 
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
@@ -1639,18 +1647,18 @@ const vtReduce=()=>window.matchMedia&&matchMedia('(prefers-reduced-motion: reduc
 const vtLater=(fn,ms)=>{const id=setTimeout(fn,ms);vt.timers.push(id);return id;};
 function vtClear(){vt.timers.forEach(clearTimeout);vt.timers=[];cancelAnimationFrame(vt.raf);}
 function vtHomeLabel(){const t=TOURS.find(x=>x.id===vt.homeSel)||TOURS[0];const el=$('#vtHomeLbl');if(el)el.textContent=tw(t.name);}
-const vtLangCode=()=>st.lang==='zh'?'zh':st.lang==='de'?'de':'en';
+const vtLangCode=()=>['zh','de','ru','kk'].includes(st.lang)?st.lang:'en';
 function vtVoiceFor(code){if(!('speechSynthesis' in window))return null;const vs=speechSynthesis.getVoices();return vs.find(v=>v.lang&&v.lang.toLowerCase().startsWith(code)&&/google|natural|premium|enhanced/i.test(v.name))||vs.find(v=>v.lang&&v.lang.toLowerCase().startsWith(code))||null;}
 function vtSpeak(text,done){
   if(!vt.voice||!('speechSynthesis' in window)){done();return;}
   const code=vtLangCode(),voice=vtVoiceFor(code);
   if(!voice&&code!=='en'){done();return;}
-  try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang=code==='zh'?'zh-CN':code==='de'?'de-DE':'en-GB';if(voice)u.voice=voice;u.rate=code==='zh'?1:.98;
+  try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang=({zh:'zh-CN',de:'de-DE',ru:'ru-RU',kk:'kk-KZ'})[code]||'en-GB';if(voice)u.voice=voice;u.rate=code==='zh'?1:.98;
     const g=vt.gen;let fin=false;const end=()=>{if(fin||g!==vt.gen)return;fin=true;done();};u.onend=end;u.onerror=end;
     vtLater(end,Math.max(6000,text.length*95));speechSynthesis.speak(u);}catch(e){done();}
 }
 function vtStopSpeech(){try{if('speechSynthesis' in window)speechSynthesis.cancel();}catch(e){}if(vt.audio){vt.audio.onended=vt.audio.onerror=null;vt.audio.pause();vt.audio=null;}}
-/* recorded narration (ElevenLabs, voice "Lily") for every stop in EN, 中文 and DE; the browser voice is only a fallback */
+/* recorded narration (ElevenLabs) for every stop in EN, 中文, DE, RU and KK; the browser voice is only a fallback */
 const VT_CLIPS=Object.keys(STOPD);
 function vtNarrate(stopName,text,done){
   const n=VT_CLIPS.indexOf(stopName);
@@ -1741,7 +1749,9 @@ document.addEventListener('keydown',e=>{if($('#vt').hidden)return;if(e.key==='Es
 if('speechSynthesis' in window)speechSynthesis.getVoices();
 
 /* ---------- booking ---------- */
-const LOC=()=>st.lang==='zh'?'zh-CN':st.lang==='de'?'de-DE':'en-GB';
+/* Kazakh dates need the browser's kk data; where it is missing, Russian dates read fine in Kazakhstan */
+const KK_OK=(()=>{try{return /[а-яәіңғүұқөһ]/i.test(new Intl.DateTimeFormat('kk-KZ',{month:'long'}).format(new Date(2020,0,15)));}catch(e){return false;}})();
+const LOC=()=>({zh:'zh-CN',de:'de-DE',ru:'ru-RU',kk:KK_OK?'kk-KZ':'ru-RU'})[st.lang]||'en-GB';
 function departures(){const out=[],d=new Date();d.setDate(d.getDate()+5);for(let i=0;i<6;i++){const x=new Date(d);x.setDate(d.getDate()+i*4);out.push(x);}return out;}
 function startBooking(){st.step=0;st.menuMode=null;st.date=null;st.booked=false;$('#bTitle').textContent='Book: '+st.tour.name;renderBooking();show('book');push({view:'book',tour:st.tour.id,step:0});}
 $('#bBack').onclick=()=>{if(history.state&&history.state.d>0){history.back();return;}if(st.step>0){st.step--;renderBooking();replace({view:'book',tour:st.tour.id,step:st.step});}else openTour(st.tour.id);};
@@ -1773,7 +1783,7 @@ function renderBooking(){
   }else{
     const q=quote(t);
     const pays=[['card','Visa / Mastercard','Any foreign card'],['apple','Apple Pay','One tap'],['google','Google Pay','One tap'],['alipay','Alipay','For travelers from China'],['wechat','WeChat Pay','For travelers from China'],['kaspi','Kaspi','For residents of Kazakhstan']];
-    p.innerHTML=`<h3>Payment</h3><div class="pays">${pays.map(([k,a,b])=>`<button class="pay" data-p="${k}" aria-pressed="${st.pay===k}"><b>${a}</b><small>${b}</small></button>`).join('')}</div><div class="secure"><span class="tick">✓</span><span>You will be sent to the payment provider's secure page to enter your card. Samruk Travel never sees or stores card numbers. <b>This prototype skips that step and does not charge anything.</b></span></div><div class="actions"><span></span><button class="btn btn-gold" id="next">Pay ${money(q.total)} (demo)</button></div>`;
+    p.innerHTML=`<h3>Payment</h3><div class="pays">${pays.map(([k,a,b])=>`<button class="pay" data-p="${k}" aria-pressed="${st.pay===k}"><b>${a}</b><small>${b}</small></button>`).join('')}</div><div class="secure"><span class="tick">✓</span><span>You will be sent to the payment provider's secure page to enter your card. Samruk Travel never sees or stores card numbers. The money goes to your hosts. <b>This prototype skips that step and does not charge anything.</b></span></div><div class="actions"><span></span><button class="btn btn-gold" id="next">Pay ${money(q.total)} (demo)</button></div>`;
     p.querySelector('.pays').onclick=e=>{const b=e.target.closest('.pay');if(!b)return;st.pay=b.dataset.p;renderBooking();};
   }
   const nx=$('#next');if(nx)nx.onclick=()=>{
@@ -1803,15 +1813,15 @@ function confirmBooking(){
   $('#cCode').textContent=code;
   $('#cTo').innerHTML=`<span><b>To:</b> ${esc(st.email)}</span>`;
   $('#cSubj').innerHTML=`<span><b>Subject:</b> Confirmed: ${esc(t.name)}, ${d} (${code})</span>`;
-  $('#cEmail').innerHTML=`<p>Hi ${esc(String(tr[0].name).split(' ')[0]||'there')},</p><p>Your trip is confirmed. Here is everything in one place.</p>
+  $('#cEmail').innerHTML=`<p>Hi ${esc(String(tr[0].name).split(' ')[0]||'there')},</p><p>Your hosts confirmed the trip. Here is everything in one place.</p>
   <p><b>Travelers:</b> ${tr.map(x=>`${esc(x.name)} (${esc(x.age)}, ${CATS[cat(x.age)].label.split(' (')[0].toLowerCase()})`).join(' · ')}</p>
   <p><b>Getting there:</b> <span>${esc(travelLabel(t))}.</span></p>
   ${dietLine()?`<p><b>Food:</b> ${dietLine()}. <span>We have passed your needs to the guide, the guesthouse kitchen and, for flights, the airline.</span></p>`:''}
-  <p><b>Documents:</b> ${tr.filter(x=>x.doc).length} / ${tr.length}. <span>A manager checks them within 24 hours.</span></p>
+  <p><b>Documents:</b> ${tr.filter(x=>x.doc).length} / ${tr.length}. <span>Your guide checks them within 24 hours.</span></p>
   <p><b>Your guide:</b> ${g.n} (${esc(g.l)}). <b>Your stay:</b> ${esc(h.n)}, ${NIGHTS[t.id]} night${NIGHTS[t.id]>1?'s':''}.</p>
   <p><b>Trip details for your group:</b> ${q.notes.map(n=>`<span>${esc(n)}</span>`).join(' ')}</p>
   <p><b>Included:</b> ${t.inc.map(x=>`<span>${esc(x)}</span>`).join(' · ')}</p><p><b>Not included:</b> ${t.exc.map(x=>`<span>${esc(x)}</span>`).join(' · ')}</p>
-  <p><b>Cancellation:</b> free until 7 days before departure, refunded to the same card.</p><p class="muted" style="font-size:13px">Samruk Travel LLP · Astana · Tour operator licence TO-000000 (sample)</p>`;
+  <p><b>Cancellation:</b> free until 7 days before departure, refunded to the same card.</p><p class="muted" style="font-size:13px">Samruk Travel connects you with local hosts; it does not sell the trip itself (prototype, sample data).</p>`;
   $('#cGuide').innerHTML=`<span class="ava" style="background:${g.c}">${g.n[0]}</span><div><b>${g.n}</b><small>${esc(g.l)}</small><small>WhatsApp: +7 700 000 00 00 (sample)</small></div>`;
   st.booked=true;if(window.PK)PK.onBooked(t.id,code);show('done');push({view:'done'});
 }
@@ -1953,16 +1963,16 @@ function travelerRows(){return st.travelers.map((x,i)=>{const c=cat(x.age);retur
   <div class="tcat"><span class="catbadge" data-cat>${CATS[c].label}</span>${st.travelers.length>1?`<button class="trm" data-rm="${i}" aria-label="Remove traveler ${i+1}">×</button>`:''}</div>${docHtml(x,i)}</div>`;}).join('');}
 function groupNotes(t){const q=quote(t);return `<h4>How your group changes the trip</h4><ul>${q.notes.map(n=>`<li>${esc(n)}</li>`).join('')}</ul>`;}
 
-/* ---------- AI assistant (scripted for the prototype) ---------- */
+/* ---------- trip helper Aru: scripted answers, not an AI model ---------- */
 const QUICK=['2 days, 3000 yuan: which trip?','I\'m vegan: what will I eat?','What is included?','Can I pay with my foreign card?','Do I need a visa?','Which trip for 3 days?','Talk to a human'];
 const msgs=$('#msgs');
 /* Aru the camel: original illustrated avatar */
 const CAMEL=`<svg class="camel" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="58" fill="#CDEBF3"/><path d="M44 80 L44 112 Q60 118 76 112 L76 80 Z" fill="#D9A86C"/><path d="M39 86 Q60 97 81 86 L83 97 Q60 107 37 97 Z" fill="#0A84A6"/><path d="M68 98 L79 114 L71 114 L63 100 Z" fill="#08708D"/><g fill="#E9B32C"><circle cx="47" cy="94" r="2.2"/><circle cx="60" cy="97.5" r="2.2"/><circle cx="73" cy="94" r="2.2"/></g><ellipse cx="37" cy="37" rx="7" ry="11" transform="rotate(-32 37 37)" fill="#C08A50"/><ellipse cx="83" cy="37" rx="7" ry="11" transform="rotate(32 83 37)" fill="#C08A50"/><ellipse cx="38" cy="38" rx="3.5" ry="7" transform="rotate(-32 38 38)" fill="#EBC093"/><ellipse cx="82" cy="38" rx="3.5" ry="7" transform="rotate(32 82 38)" fill="#EBC093"/><ellipse cx="60" cy="54" rx="27" ry="25" fill="#D9A86C"/><g fill="#A8763E"><circle cx="52" cy="31" r="6"/><circle cx="60" cy="28" r="7"/><circle cx="68" cy="31" r="6"/></g><ellipse cx="60" cy="70" rx="21" ry="15" fill="#F1D3A4"/><path d="M44 45 Q49 42 54 45" stroke="#7A5228" stroke-width="2.2" fill="none" stroke-linecap="round"/><path d="M66 45 Q71 42 76 45" stroke="#7A5228" stroke-width="2.2" fill="none" stroke-linecap="round"/><g class="eyes"><circle cx="49" cy="52" r="4.6" fill="#2A1E14"/><circle cx="71" cy="52" r="4.6" fill="#2A1E14"/><circle cx="50.6" cy="50.4" r="1.6" fill="#fff"/><circle cx="72.6" cy="50.4" r="1.6" fill="#fff"/></g><circle cx="40" cy="62" r="4.2" fill="#F2A08A" opacity=".65"/><circle cx="80" cy="62" r="4.2" fill="#F2A08A" opacity=".65"/><ellipse cx="54" cy="66" rx="2.6" ry="1.7" fill="#7A5228"/><ellipse cx="66" cy="66" rx="2.6" ry="1.7" fill="#7A5228"/><path d="M52 75 Q60 81.5 68 75" stroke="#7A5228" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg>`;
 document.querySelectorAll('[data-camel]').forEach(el=>el.innerHTML=CAMEL);
 function add(text,who,raw){const m=document.createElement('div');m.className='msg '+who;m.textContent=text;if(raw)m.setAttribute('translate','no');let node=m;if(who.startsWith('bot')){node=document.createElement('div');node.className='row';node.innerHTML=`<span class="bot-ava">${CAMEL}</span>`;node.appendChild(m);}msgs.appendChild(node);msgs.scrollTop=msgs.scrollHeight;return node;}
-function say(q){add(q,'me');const t=add('Aru is thinking…','bot typing');$('#fab').classList.add('thinking');setTimeout(()=>{t.remove();add(reply(q),'bot',true);$('#fab').classList.remove('thinking');},750);}
+function say(q){add(q,'me');const t=add('…','bot typing');$('#fab').classList.add('thinking');setTimeout(()=>{t.remove();add(reply(q),'bot',true);$('#fab').classList.remove('thinking');},200);}
 let opened=false;
-function openChat(){$('#chat').hidden=false;$('#fab').setAttribute('aria-expanded','true');if(!opened){opened=true;add('Salem! I\'m Aru, the Samruk Travel camel and your travel guide. I can explain what\'s included, how to pay with a foreign card, and which trip suits your days.','bot');}$('#chatIn').focus();}
+function openChat(){$('#chat').hidden=false;$('#fab').setAttribute('aria-expanded','true');if(!opened){opened=true;add('Salem! I\'m Aru, the Samruk Travel camel. I am not an AI: I answer from a fixed set of trip facts. I can explain what\'s included, how to pay with a foreign card, and which trip suits your days.','bot');}$('#chatIn').focus();}
 $('#fab').onclick=()=>$('#chat').hidden?openChat():($('#chat').hidden=true,$('#fab').setAttribute('aria-expanded','false'));
 $('#chatClose').onclick=()=>{$('#chat').hidden=true;$('#fab').setAttribute('aria-expanded','false');};
 $('#quick').innerHTML=QUICK.map(q=>`<button>${q}</button>`).join('');
@@ -1974,32 +1984,32 @@ $('#chatForm').onsubmit=e=>{e.preventDefault();const v=$('#chatIn').value.trim()
    Aru v2. Reads the whole question: tour (with typos), days, budget and
    currency, people, transport, food and documents, and answers in the
    language of the question (English, 中文 or Русский). Still a scripted
-   demo: in the real product the same facts go to an AI model.
+   helper: it matches words in the question, it is not a language model.
    ========================================================================== */
 const ARU_CTX={tour:null,last:''};
 const TNAME={charyn:{en:'Charyn Canyon',zh:'恰伦峡谷',ru:'Чарынский каньон'},kolsai:{en:'Kolsai Lakes & Kaindy',zh:'科尔赛湖与凯恩迪湖',ru:'Кольсайские озёра и Каинды'},turkestan:{en:'Turkestan Silk Road',zh:'突厥斯坦丝绸之路',ru:'Туркестан и Шёлковый путь'},burabay:{en:'Burabay Lakes',zh:'布拉拜湖区',ru:'Озёра Бурабая'},bigalmaty:{en:"Big Almaty Lake & Shymbulak",zh:"大阿拉木图湖与琼布拉克",ru:"Большое Алматинское озеро и Шымбулак"},altynemel:{en:"Altyn-Emel & Singing Dune",zh:"阿尔腾埃梅尔与鸣沙山",ru:"Алтын-Эмель и Поющий бархан"},astanacity:{en:"Astana City Break",zh:"阿斯塔纳城市之旅",ru:"Выходные в Астане"},tamgaly:{en:"Tamgaly Rock Art",zh:"坦巴雷岩画",ru:"Петроглифы Тамгалы"},issyk:{en:"Lake Issyk",zh:"伊塞克湖",ru:"Озеро Иссык"},koktobe:{en:"Kok-Tobe & Kok-Zhailau",zh:"绿山与科克贾伊劳",ru:"Кок-Тобе и Кок-Жайляу"},beketata:{en:"Beket-Ata Pilgrimage",zh:"贝克特-阿塔朝圣之旅",ru:"Паломничество к Бекет-Ата"},sairam:{en:"Sayram-Ugam & Old Sayram",zh:"赛拉姆-乌甘与古城赛拉姆",ru:"Сайрам-Угам и древний Сайрам"},zharkent:{en:"Zharkent Mosque & Silk Road East",zh:"扎尔肯特清真寺与东方丝路",ru:"Жаркентская мечеть и восточный Шёлковый путь"},assy:{en:"Assy Plateau & Observatory",zh:"阿瑟高原与天文台",ru:"Плато Ассы и обсерватория"}};
 const CNAME={almaty:{en:'Almaty',zh:'阿拉木图',ru:'Алматы'},astana:{en:'Astana',zh:'阿斯塔纳',ru:'Астана'},turkestan:{en:'Turkestan',zh:'突厥斯坦',ru:'Туркестан'},aktau:{en:"Aktau",zh:"阿克套",ru:"Актау"},shymkent:{en:"Shymkent",zh:"奇姆肯特",ru:"Шымкент"}};
-const TKEYS={charyn:['charyn','charin','charun','sharyn','чарын','чарин','шарын','恰伦','查林','valley of castles','castle valley','долина замков','城堡谷'],
- kolsai:['kolsai','kolsay','колсай','кольсай','科尔赛','kaindy','kayindy','каинды','кайынды','凯恩迪','saty','саты'],
- turkestan:['turkestan','turkistan','туркестан','突厥斯坦','yasawi','yasavi','ясави','亚萨维','otrar','sauran','отрар','сауран','silk road','шёлков','шелков','丝绸之路'],
- burabay:['burabay','borovoe','borovoye','бурабай','боровое','布拉拜','okzhetpes','окжетпес'],
- bigalmaty:["big almaty", "almaty lake", "bao", "бао", "большое алматинское", "shymbulak", "chimbulak", "шымбулак", "чимбулак", "medeu", "медеу", "大阿拉木图湖", "琼布拉克"],
- altynemel:["altyn", "altyn-emel", "altynemel", "алтын", "алтын-эмель", "singing dune", "поющий бархан", "鸣沙山", "阿尔腾埃梅尔", "katutau", "катутау"],
- astanacity:["astana city", "city break", "baiterek", "bayterek", "байтерек", "khan shatyr", "хан шатыр", "巴伊杰列克", "可汗之帐", "capital", "столиц", "首都"],
- tamgaly:["tamgaly", "tanbaly", "тамгалы", "танбалы", "petroglyph", "петроглиф", "rock art", "岩画", "坦巴雷"],
- issyk:["issyk", "esik", "иссык", "есик", "golden man", "золотой человек", "伊塞克", "金人"],
- koktobe:["kok-tobe", "koktobe", "kok tobe", "кок-тобе", "кoктобе", "kok-zhailau", "kokzhailau", "кок-жайляу", "绿山"],
- beketata:["beket", "бекет", "shopan", "шопан", "ustyurt", "устюрт", "pilgrim", "паломни", "贝克特", "朝圣"],
- sairam:["sayram", "sairam", "сайрам", "ugam", "угам", "赛拉姆", "乌甘"],
- zharkent:["zharkent", "jarkent", "жаркент", "khorgos", "хоргос", "霍尔果斯", "扎尔肯特", "mosque", "мечет", "清真寺", "uyghur", "уйгур"],
- assy:["assy", "ассы", "observatory", "обсерватор", "阿瑟", "天文台", "stargazing", "звёзд", "звезд"]};
+const TKEYS={charyn:['шарын шатқалы','қамалдар','charyn','charin','charun','sharyn','чарын','чарин','шарын','恰伦','查林','valley of castles','castle valley','долина замков','城堡谷'],
+ kolsai:['көлсай','колсай','қайыңды','каинды','kolsai','kolsay','колсай','кольсай','科尔赛','kaindy','kayindy','каинды','кайынды','凯恩迪','saty','саты'],
+ turkestan:['түркістан','ясауи','turkestan','turkistan','туркестан','突厥斯坦','yasawi','yasavi','ясави','亚萨维','otrar','sauran','отрар','сауран','silk road','шёлков','шелков','丝绸之路'],
+ burabay:['бурабай','оқжетпес','burabay','borovoe','borovoye','бурабай','боровое','布拉拜','okzhetpes','окжетпес'],
+ bigalmaty:['үлкен алматы','шымбұлақ','медеу',"big almaty", "almaty lake", "bao", "бао", "большое алматинское", "shymbulak", "chimbulak", "шымбулак", "чимбулак", "medeu", "медеу", "大阿拉木图湖", "琼布拉克"],
+ altynemel:['алтынемел','әнші құм',"altyn", "altyn-emel", "altynemel", "алтын", "алтын-эмель", "singing dune", "поющий бархан", "鸣沙山", "阿尔腾埃梅尔", "katutau", "катутау"],
+ astanacity:['астана','бәйтерек',"astana city", "city break", "baiterek", "bayterek", "байтерек", "khan shatyr", "хан шатыр", "巴伊杰列克", "可汗之帐", "capital", "столиц", "首都"],
+ tamgaly:['таңбалы',"tamgaly", "tanbaly", "тамгалы", "танбалы", "petroglyph", "петроглиф", "rock art", "岩画", "坦巴雷"],
+ issyk:['есік',"issyk", "esik", "иссык", "есик", "golden man", "золотой человек", "伊塞克", "金人"],
+ koktobe:['көктөбе','көкжайлау',"kok-tobe", "koktobe", "kok tobe", "кок-тобе", "кoктобе", "kok-zhailau", "kokzhailau", "кок-жайляу", "绿山"],
+ beketata:['бекет ата',"beket", "бекет", "shopan", "шопан", "ustyurt", "устюрт", "pilgrim", "паломни", "贝克特", "朝圣"],
+ sairam:['сайрам',"sayram", "sairam", "сайрам", "ugam", "угам", "赛拉姆", "乌甘"],
+ zharkent:['жаркент',"zharkent", "jarkent", "жаркент", "khorgos", "хоргос", "霍尔果斯", "扎尔肯特", "mosque", "мечет", "清真寺", "uyghur", "уйгур"],
+ assy:['асы жайлауы',"assy", "ассы", "observatory", "обсерватор", "阿瑟", "天文台", "stargazing", "звёзд", "звезд"]};
 const NUMW={one:1,two:2,three:3,four:4,five:5,six:6,seven:7,'один':1,'одного':1,'два':2,'двух':2,'три':3,'трёх':3,'трех':3,'четыре':4,'пять':5,'一':1,'两':2,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7};
 function lev(a,b){const m=a.length,n=b.length;if(Math.abs(m-n)>2)return 9;const d=Array.from({length:m+1},(_,i)=>[i]);for(let j=1;j<=n;j++)d[0][j]=j;
   for(let i=1;i<=m;i++)for(let j=1;j<=n;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));return d[m][n];}
 function findTour(s){for(const [id,keys] of Object.entries(TKEYS))if(keys.some(k=>s.includes(k)))return id;
   const words=s.match(/[a-z]{5,}/g)||[];
   for(const w of words)for(const [id,keys] of Object.entries(TKEYS))if(keys.some(k=>/^[a-z]{5,}$/.test(k)&&lev(w,k)<=(k.length>6?2:1)))return id;return null;}
-function findDays(s){let m=s.match(/(\d+)\s*-?\s*(?:days?\b|nights?\b|дн|день|дня|дней|сут|天|日)/);if(m)return +m[1];
+function findDays(s){let m=s.match(/(\d+)\s*-?\s*(?:days?\b|nights?\b|дн|день|дня|дней|сут|күн|түн|天|日)/);if(m)return +m[1];
   m=s.match(/(one|two|three|four|five|six|seven|одного|один|двух|два|трёх|трех|три|четыре|пять|一|两|二|三|四|五|六|七)\s*(?:个)?\s*(?:days?\b|дн|день|дня|дней|天)/);if(m)return NUMW[m[1]];
   if(/weekend|выходн|周末/.test(s))return 2;return null;}
 const CURRE=[[/yuan|cny|rmb|元|юан|¥|￥|人民币/,'CNY'],[/usd|dollar|\$|долл|美元/,'USD'],[/eur|euro|€|евро|欧元/,'EUR'],[/tenge|kzt|₸|тенге|тг|坚戈/,'KZT']];
@@ -2015,10 +2025,10 @@ function findPeople(s){let m=s.match(/(\d+)\s*(?:people|persons?|pax|travell?ers
   const k=m?+m[1]:(/\b(kids?|child|children|son|daughter|baby)\b|ребен|ребён|сын|доч|детьми|孩子|儿子|女儿|宝宝/.test(s)?1:0);return {adults:a,kids:k};}
 function findMode(s){if(/plane|flight|\bfly\b|airport|самол|перел|рейс|飞机|航班|坐飞机/.test(s))return'plane';if(/train|railway|поезд|ж\/д|火车|高铁|列车/.test(s))return'train';
   if(/\bcar\b|drive|driving|taxi|transfer|машин|авто|такси|汽车|自驾|开车|包车/.test(s))return'car';if(/ship|boat|ferry|корабл|паром|лодк|船/.test(s))return'ship';return null;}
-const qlang=q=>/[㐀-鿿]/.test(q)?'zh':/[а-яё]/i.test(q)?'ru':'en';
-const LX=(lang,o)=>o[lang]||o.en;
+const qlang=q=>/[㐀-鿿]/.test(q)?'zh':/[әғқңөұүһі]/i.test(q)?'kk':/[а-яё]/i.test(q)?'ru':(st.lang==='ru'||st.lang==='kk'?st.lang:'en');
+const LX=(lang,o)=>o[lang]||(lang==='kk'&&o.ru)||o.en; // Kazakh questions get the Russian answer until Aru has Kazakh texts
 function fmtC(kzt,cur){const v=Math.round(kzt/RATES[cur]);return cur==='KZT'?v.toLocaleString('en-US')+' ₸':SYM[cur]+v.toLocaleString('en-US');}
-const TN=(id,l)=>TNAME[id][l]||TNAME[id].en, CN=(id,l)=>CNAME[id][l]||CNAME[id].en;
+const TN=(id,l)=>TNAME[id][l]||(l==='kk'&&TNAME[id].ru)||TNAME[id].en, CN=(id,l)=>CNAME[id][l]||(l==='kk'&&CNAME[id].ru)||CNAME[id].en;
 const nightsTxt=(n,l)=>LX(l,{en:`${n} night${n>1?'s':''}`,zh:`${n}晚`,ru:`${n} ${n===1?'ночь':n<5?'ночи':'ночей'}`});
 const daysTxt=(n,l)=>LX(l,{en:`${n} day${n>1?'s':''}`,zh:`${n}天`,ru:`${n} ${n===1?'день':n<5?'дня':'дней'}`});
 
@@ -2078,30 +2088,30 @@ function aruAnswer(q){
   const tid=findTour(s)||null;if(tid)ARU_CTX.tour=tid;const tc=tid||ARU_CTX.tour||(st.tour&&st.tour.id)||null;
   const days=findDays(s),budget=findBudget(s,l),ppl=findPeople(s),mode=findMode(s);
   const has=re=>re.test(s);
-  if(has(/human|manager|operator|real person|talk to a person|менеджер|оператор|живой человек|позвон|人工|客服|真人/))return LX(l,{en:'Sure. I have passed your chat to our team: a manager will reply here or on WhatsApp / WeChat within 1 hour, every day 08:00–22:00 Astana time.',zh:'好的，我已把对话转给团队：客服会在1小时内在这里或通过微信/WhatsApp回复你，每天08:00–22:00（阿斯塔纳时间）。',ru:'Конечно. Я передал чат команде: менеджер ответит здесь или в WhatsApp / WeChat в течение часа, каждый день с 08:00 до 22:00 по Астане.'});
+  if(has(/адаммен|адам керек|қоңырау шал|human|manager|operator|real person|talk to a person|менеджер|оператор|живой человек|позвон|人工|客服|真人/))return LX(l,{en:'Sure. I have passed your chat to our team: a manager will reply here or on WhatsApp / WeChat within 1 hour, every day 08:00–22:00 Astana time.',zh:'好的，我已把对话转给团队：客服会在1小时内在这里或通过微信/WhatsApp回复你，每天08:00–22:00（阿斯塔纳时间）。',ru:'Конечно. Я передал чат команде: менеджер ответит здесь или в WhatsApp / WeChat в течение часа, каждый день с 08:00 до 22:00 по Астане.'});
   const inclQ=/includ|cover|входит|включ|包含|包括/.test(s);
-  if(has(/vegan|vegetarian|halal|allerg|gluten|lactose|dairy|peanut|\bnuts?\b|diet|\bmenu|веган|вегетар|халял|аллерг|глютен|лактоз|арахис|орех|диет|меню|饮食|过敏|素食|纯素|清真|花生|菜单/)||(!inclQ&&has(/\bfood\b|\bmeals?\b|\beat\b|питани|(^|\s)еда|кормят|吃什么|餐/)))return ansDiet(l,q);
-  const visaQ=has(/visa\b(?! card)|visa-free|entry rules|border|виз[аыу]|безвиз|签证|免签|入境/)&&!has(/visa card|visa\s*\/|mastercard/);
-  if(!visaQ&&has(/document|passport|birth certificate|upload|verif|proof|документ|паспорт|свидетельств|загруз|подтвержд|证件|护照|出生证|上传|验证/))return LX(l,{en:'When you add travelers to a booking, upload a document for each one: a passport photo page, or a passport or birth certificate for children. A manager checks that names and ages match within 24 hours. This keeps child and senior prices fair. Files are stored in Kazakhstan (Law No. 94-V) and deleted 30 days after the trip.',zh:'预订时添加游客后，请为每位游客上传证件：护照照片页，儿童可上传护照或出生证明。客服会在24小时内核对姓名和年龄是否一致，以确保儿童和老人优惠不被滥用。文件存储在哈萨克斯坦境内（第94-V号法律），行程结束30天后删除。',ru:'Когда добавляете туристов в бронь, загрузите документ на каждого: разворот паспорта, а для детей — паспорт или свидетельство о рождении. Менеджер за 24 часа проверит, что имена и возраст совпадают. Так детские и пенсионные скидки нельзя получить обманом. Файлы хранятся в Казахстане (закон № 94-V) и удаляются через 30 дней после поездки.'});
-  const priceQ=has(/price|cost|how much|budget|cheap|expensive|afford|сколько стоит|стоимост|цен[аы]|бюджет|дешев|дорог|多少钱|价格|预算|便宜|贵|费用/);
+  if(has(/халал|аллергия|диета|мәзір|жержаңғақ|етсіз|vegan|vegetarian|halal|allerg|gluten|lactose|dairy|peanut|\bnuts?\b|diet|\bmenu|веган|вегетар|халял|аллерг|глютен|лактоз|арахис|орех|диет|меню|饮食|过敏|素食|纯素|清真|花生|菜单/)||(!inclQ&&has(/тамақ|не жеймін|асхана|\bfood\b|\bmeals?\b|\beat\b|питани|(^|\s)еда|кормят|吃什么|餐/)))return ansDiet(l,q);
+  const visaQ=has(/виза|visa\b(?! card)|visa-free|entry rules|border|виз[аыу]|безвиз|签证|免签|入境/)&&!has(/visa card|visa\s*\/|mastercard/);
+  if(!visaQ&&has(/құжат|төлқұжат|document|passport|birth certificate|upload|verif|proof|документ|паспорт|свидетельств|загруз|подтвержд|证件|护照|出生证|上传|验证/))return LX(l,{en:'When you add travelers to a booking, upload a document for each one: a passport photo page, or a passport or birth certificate for children. A manager checks that names and ages match within 24 hours. This keeps child and senior prices fair. Files are stored in Kazakhstan (Law No. 94-V) and deleted 30 days after the trip.',zh:'预订时添加游客后，请为每位游客上传证件：护照照片页，儿童可上传护照或出生证明。客服会在24小时内核对姓名和年龄是否一致，以确保儿童和老人优惠不被滥用。文件存储在哈萨克斯坦境内（第94-V号法律），行程结束30天后删除。',ru:'Когда добавляете туристов в бронь, загрузите документ на каждого: разворот паспорта, а для детей — паспорт или свидетельство о рождении. Менеджер за 24 часа проверит, что имена и возраст совпадают. Так детские и пенсионные скидки нельзя получить обманом. Файлы хранятся в Казахстане (закон № 94-V) и удаляются через 30 дней после поездки.'});
+  const priceQ=has(/қанша|бағасы|баға|құны|бюджет|арзан|қымбат|теңге|price|cost|how much|budget|cheap|expensive|afford|сколько стоит|стоимост|цен[аы]|бюджет|дешев|дорог|多少钱|价格|预算|便宜|贵|费用/);
   if(budget)return ansBudget(l,budget,days,tid,ppl);
   if(mode||has(/how (do|can|to) .*get|get there|getting there|from almaty|from astana|доехать|добрать|как попасть|怎么去|怎么到|交通/))return ansTransport(l,tc,mode);
   if(priceQ)return ansPrice(l,tid);
   if(days)return ansDays(l,days,s);
   if(visaQ)return LX(l,{en:'Citizens of China can visit Kazakhstan without a visa for up to 30 days per trip (90 days in any 180), under the mutual agreement in force since November 2023. For other passports the rules differ: please check the website of Kazakhstan\'s Ministry of Foreign Affairs before you fly.',zh:'根据2023年11月生效的互免签证协定，中国公民可免签入境哈萨克斯坦，每次停留不超过30天，每180天累计不超过90天。其他国家护照规定不同，出发前请查看哈萨克斯坦外交部官网。',ru:'Граждане Китая могут въезжать в Казахстан без визы до 30 дней за поездку (не более 90 дней за 180) по соглашению, действующему с ноября 2023 года. Для других паспортов правила разные: проверьте сайт МИД Казахстана перед поездкой.'});
-  if(has(/pay|card|mastercard|alipay|wechat|apple pay|google pay|kaspi|оплат|карт|плат[иеё]|支付|付款|刷卡|银行卡|微信/))return LX(l,{en:`You can pay with Alipay, WeChat Pay, Visa, Mastercard, Apple Pay or Google Pay. Prices are shown in your currency (now ${st.cur}). Payment goes through a licensed provider, so we never see your card number.`,zh:`可以使用支付宝、微信支付、Visa、Mastercard、Apple Pay 或 Google Pay 付款。价格以你的货币显示（当前为${st.cur}）。付款由持牌支付服务商处理，我们看不到你的卡号。`,ru:`Оплатить можно через Alipay, WeChat Pay, Visa, Mastercard, Apple Pay или Google Pay. Цены показаны в вашей валюте (сейчас ${st.cur}). Платёж проходит через лицензированного провайдера, номер карты мы не видим.`});
-  if(has(/cancel|refund|отмен|возврат|取消|退款/))return LX(l,{en:'Free cancellation up to 7 days before departure, with a full refund to the same card. Later than that, we refund 50%.',zh:'出发前7天可免费取消，全额原路退款；之后取消退还50%。',ru:'Бесплатная отмена до 7 дней до выезда, деньги вернутся на ту же карту. Позже возвращаем 50%.'});
-  if(has(/includ|cover|what do (i|we) get|входит|включ|包含|包括/)){if(tc){const t=TOURS.find(x=>x.id===tc);return LX(l,{en:`${TN(tc,l)} includes: ${t.inc.join(', ')}. Not included: ${t.exc.join(', ')}.`,zh:`${TN(tc,l)}包含：${t.inc.map(tw2zh).join('、')}。不包含：${t.exc.map(tw2zh).join('、')}。`,ru:`В ${TN(tc,l)} входят гид, транспорт, проживание (${nightsTxt(NIGHTS[tc],l)}), ${tc==='turkestan'?'завтраки и два ужина':'питание в поездке'} и входные билеты. Не входят: дорога до ${CN(START[tc],l)}, страховка и личные расходы.`});}
+  if(has(/төле|төлем|карта|pay|card|mastercard|alipay|wechat|apple pay|google pay|kaspi|оплат|карт|плат[иеё]|支付|付款|刷卡|银行卡|微信/))return LX(l,{en:`You can pay with Alipay, WeChat Pay, Visa, Mastercard, Apple Pay or Google Pay. Prices are shown in your currency (now ${st.cur}). Payment goes through a licensed provider, so we never see your card number.`,zh:`可以使用支付宝、微信支付、Visa、Mastercard、Apple Pay 或 Google Pay 付款。价格以你的货币显示（当前为${st.cur}）。付款由持牌支付服务商处理，我们看不到你的卡号。`,ru:`Оплатить можно через Alipay, WeChat Pay, Visa, Mastercard, Apple Pay или Google Pay. Цены показаны в вашей валюте (сейчас ${st.cur}). Платёж проходит через лицензированного провайдера, номер карты мы не видим.`});
+  if(has(/бас тарт|қайтар|cancel|refund|отмен|возврат|取消|退款/))return LX(l,{en:'Free cancellation up to 7 days before departure, with a full refund to the same card. Later than that, we refund 50%.',zh:'出发前7天可免费取消，全额原路退款；之后取消退还50%。',ru:'Бесплатная отмена до 7 дней до выезда, деньги вернутся на ту же карту. Позже возвращаем 50%.'});
+  if(has(/кіреді|не кіре|includ|cover|what do (i|we) get|входит|включ|包含|包括/)){if(tc){const t=TOURS.find(x=>x.id===tc);return LX(l,{en:`${TN(tc,l)} includes: ${t.inc.join(', ')}. Not included: ${t.exc.join(', ')}.`,zh:`${TN(tc,l)}包含：${t.inc.map(tw2zh).join('、')}。不包含：${t.exc.map(tw2zh).join('、')}。`,ru:`В ${TN(tc,l)} входят гид, транспорт, проживание (${nightsTxt(NIGHTS[tc],l)}), ${tc==='turkestan'?'завтраки и два ужина':'питание в поездке'} и входные билеты. Не входят: дорога до ${CN(START[tc],l)}, страховка и личные расходы.`});}
     return LX(l,{en:'Every trip includes a guide, transport, accommodation, meals during the trip and entrance fees. Flights and travel insurance are not included. Name a tour and I will list everything.',zh:'每条线路都包含导游、交通、住宿、行程中的餐食和门票，不包含机票和旅行保险。告诉我线路名称，我可以列出完整清单。',ru:'В каждый тур входят гид, транспорт, проживание, питание в поездке и входные билеты. Перелёт и страховка не входят. Назовите тур, и я перечислю всё подробно.'});}
-  if(has(/bring|pack|wear|clothes|взять|брать|одеж|带什么|穿什么|准备什么|携带/)){const t=tc&&TOURS.find(x=>x.id===tc);return t?LX(l,{en:`For ${TN(tc,l)} bring: ${t.bring.join(', ')}.`,zh:`${TN(tc,l)}需要携带：${t.bring.map(tw2zh).join('、')}。`,ru:`На ${TN(tc,l)} возьмите удобную обувь, тёплый слой на вечер и защиту от солнца${tc==='turkestan'?'; для мавзолея нужна одежда, закрывающая плечи и колени':''}.`}):LX(l,{en:'Comfortable shoes, a warm layer for the evening, sun protection and a water bottle. Name a tour and I will give its exact list.',zh:'舒适的鞋、晚上的保暖衣物、防晒用品和水瓶。告诉我线路名称，我给你具体清单。',ru:'Удобная обувь, тёплая кофта на вечер, защита от солнца и бутылка воды. Назовите тур, и я дам точный список.'});}
-  if(has(/weather|season|when to|best time|month|cold|\bhot\b|rain|snow|погод|сезон|когда лучше|холод|жар|天气|季节|什么时候|冷|热|下雨/))return tc==='turkestan'?LX(l,{en:'Turkestan is best in April–May and September–October; in summer it is often above 35 °C.',zh:'突厥斯坦最佳季节是4–5月和9–10月，夏天常超过35°C。',ru:'В Туркестан лучше ехать в апреле–мае и сентябре–октябре: летом там часто выше +35 °C.'}):LX(l,{en:'Late May to early October is the best season for Charyn, Kolsai and Burabay; nights in the mountains are cold, so bring a fleece. Turkestan is best in spring and autumn.',zh:'5月下旬到10月初最适合去恰伦、科尔赛和布拉拜，山里夜间较冷，请带抓绒衣。突厥斯坦春秋两季最舒适。',ru:'Лучший сезон для Чарына, Кольсая и Бурабая — с конца мая до начала октября; ночью в горах холодно, возьмите флиску. В Туркестан лучше весной и осенью.'});
-  if(has(/discount|child|kid|baby|infant|senior|elder|скидк|ребен|дет|пенсион|пожил|折扣|优惠|儿童|孩子|老人|婴儿/))return LX(l,{en:'Children 2–11 pay 30% less, travelers 60+ pay 15% less, and children under 2 go free. We add child seats, a kids\' menu and an easier pace when needed. The discount is confirmed by a document uploaded at booking.',zh:'2–11岁儿童优惠30%，60岁以上优惠15%，2岁以下免费。需要时我们提供儿童座椅、儿童餐和更轻松的节奏。优惠需在预订时上传证件确认。',ru:'Дети 2–11 лет платят на 30% меньше, гости 60+ на 15% меньше, дети до 2 лет бесплатно. Добавим детские кресла, детское меню и спокойный темп. Скидку подтверждает документ, загруженный при бронировании.'});
-  if(has(/difficult|hard|fitness|hike|altitude|сложн|тяжел|поход|высот|难|累|徒步|海拔|体力/))return LX(l,{en:'Charyn, Turkestan and Burabay are easy: short walks on paths. Kolsai is moderate: an optional hike up the valley; with small children or travelers 60+ we switch to an easy lakeside walk.',zh:'恰伦、突厥斯坦和布拉拜难度较低，以短途步道为主。科尔赛为中等难度，可选择沿山谷徒步；有小孩或60岁以上游客时改为轻松的湖边散步。',ru:'Чарын, Туркестан и Бурабай — лёгкие маршруты с короткими прогулками. Кольсай — средней сложности: по желанию подъём по ущелью; с маленькими детьми или гостями 60+ заменяем его лёгкой прогулкой у озера.'});
-  if(has(/trust|scam|legit|licen|reliable|real company|довер|надеж|мошен|лиценз|可靠|骗|正规|许可/))return LX(l,{en:'Samruk Travel is a registered company in Astana, working since 2020, with 3,400 travelers in 2025. Payment goes through a licensed provider, and you can cancel for free up to 7 days before departure.',zh:'Samruk Travel 是阿斯塔纳的注册公司，2020年成立，2025年接待了3,400位游客。付款通过持牌服务商，出发前7天可免费取消。',ru:'Samruk Travel — зарегистрированная компания из Астаны, работает с 2020 года, в 2025-м приняла 3 400 туристов. Оплата идёт через лицензированного провайдера, отмена бесплатна за 7 дней до выезда.'});
-  if(has(/which|recommend|suggest|what trip|какой тур|посовет|что выбрать|推荐|哪个|哪条/))return ansDays(l,4,s);
+  if(has(/не алу|не ал|киім|алып жүр|bring|pack|wear|clothes|взять|брать|одеж|带什么|穿什么|准备什么|携带/)){const t=tc&&TOURS.find(x=>x.id===tc);return t?LX(l,{en:`For ${TN(tc,l)} bring: ${t.bring.join(', ')}.`,zh:`${TN(tc,l)}需要携带：${t.bring.map(tw2zh).join('、')}。`,ru:`На ${TN(tc,l)} возьмите удобную обувь, тёплый слой на вечер и защиту от солнца${tc==='turkestan'?'; для мавзолея нужна одежда, закрывающая плечи и колени':''}.`}):LX(l,{en:'Comfortable shoes, a warm layer for the evening, sun protection and a water bottle. Name a tour and I will give its exact list.',zh:'舒适的鞋、晚上的保暖衣物、防晒用品和水瓶。告诉我线路名称，我给你具体清单。',ru:'Удобная обувь, тёплая кофта на вечер, защита от солнца и бутылка воды. Назовите тур, и я дам точный список.'});}
+  if(has(/ауа райы|маусым|қашан бар|суық|ыстық|жаңбыр|қар|weather|season|when to|best time|month|cold|\bhot\b|rain|snow|погод|сезон|когда лучше|холод|жар|天气|季节|什么时候|冷|热|下雨/))return tc==='turkestan'?LX(l,{en:'Turkestan is best in April–May and September–October; in summer it is often above 35 °C.',zh:'突厥斯坦最佳季节是4–5月和9–10月，夏天常超过35°C。',ru:'В Туркестан лучше ехать в апреле–мае и сентябре–октябре: летом там часто выше +35 °C.'}):LX(l,{en:'Late May to early October is the best season for Charyn, Kolsai and Burabay; nights in the mountains are cold, so bring a fleece. Turkestan is best in spring and autumn.',zh:'5月下旬到10月初最适合去恰伦、科尔赛和布拉拜，山里夜间较冷，请带抓绒衣。突厥斯坦春秋两季最舒适。',ru:'Лучший сезон для Чарына, Кольсая и Бурабая — с конца мая до начала октября; ночью в горах холодно, возьмите флиску. В Туркестан лучше весной и осенью.'});
+  if(has(/жеңілдік|бала|нәресте|зейнеткер|discount|child|kid|baby|infant|senior|elder|скидк|ребен|дет|пенсион|пожил|折扣|优惠|儿童|孩子|老人|婴儿/))return LX(l,{en:'Children 2–11 pay 30% less, travelers 60+ pay 15% less, and children under 2 go free. We add child seats, a kids\' menu and an easier pace when needed. The discount is confirmed by a document uploaded at booking.',zh:'2–11岁儿童优惠30%，60岁以上优惠15%，2岁以下免费。需要时我们提供儿童座椅、儿童餐和更轻松的节奏。优惠需在预订时上传证件确认。',ru:'Дети 2–11 лет платят на 30% меньше, гости 60+ на 15% меньше, дети до 2 лет бесплатно. Добавим детские кресла, детское меню и спокойный темп. Скидку подтверждает документ, загруженный при бронировании.'});
+  if(has(/қиын|ауыр|жорық|биіктік|difficult|hard|fitness|hike|altitude|сложн|тяжел|поход|высот|难|累|徒步|海拔|体力/))return LX(l,{en:'Charyn, Turkestan and Burabay are easy: short walks on paths. Kolsai is moderate: an optional hike up the valley; with small children or travelers 60+ we switch to an easy lakeside walk.',zh:'恰伦、突厥斯坦和布拉拜难度较低，以短途步道为主。科尔赛为中等难度，可选择沿山谷徒步；有小孩或60岁以上游客时改为轻松的湖边散步。',ru:'Чарын, Туркестан и Бурабай — лёгкие маршруты с короткими прогулками. Кольсай — средней сложности: по желанию подъём по ущелью; с маленькими детьми или гостями 60+ заменяем его лёгкой прогулкой у озера.'});
+  if(has(/сенім|сенуге|алаяқ|лицензия|trust|scam|legit|licen|reliable|real company|довер|надеж|мошен|лиценз|可靠|骗|正规|许可/))return LX(l,{en:'Samruk Travel is a registered company in Astana, working since 2020, with 3,400 travelers in 2025. Payment goes through a licensed provider, and you can cancel for free up to 7 days before departure.',zh:'Samruk Travel 是阿斯塔纳的注册公司，2020年成立，2025年接待了3,400位游客。付款通过持牌服务商，出发前7天可免费取消。',ru:'Samruk Travel — зарегистрированная компания из Астаны, работает с 2020 года, в 2025-м приняла 3 400 туристов. Оплата идёт через лицензированного провайдера, отмена бесплатна за 7 дней до выезда.'});
+  if(has(/қай маршрут|қандай|ұсын|кеңес|which|recommend|suggest|what trip|какой тур|посовет|что выбрать|推荐|哪个|哪条/))return ansDays(l,4,s);
   if(tid)return ansTour(l,tid);
-  if(has(/thank|спасибо|谢谢|感谢/))return LX(l,{en:'You are welcome! Anything else about your trip?',zh:'不客气！关于行程还有其他问题吗？',ru:'Пожалуйста! Ещё что-нибудь о поездке?'});
-  if(has(/\b(hi|hello|hey|hallo)\b|привет|здравств|你好|您好/))return LX(l,{en:'Hello! I\'m Aru. Ask me about trips, prices for your budget, getting there, food and allergies, visas or payment.',zh:'你好！我是 Aru。可以问我线路、预算、交通、饮食和过敏、签证或付款。',ru:'Привет! Я Ару. Спросите про туры, цены под ваш бюджет, дорогу, питание и аллергии, визы или оплату.'});
+  if(has(/рақмет|рахмет|thank|спасибо|谢谢|感谢/))return LX(l,{en:'You are welcome! Anything else about your trip?',zh:'不客气！关于行程还有其他问题吗？',ru:'Пожалуйста! Ещё что-нибудь о поездке?'});
+  if(has(/сәлем|салем|сәлеметсіз|\b(hi|hello|hey|hallo)\b|привет|здравств|你好|您好/))return LX(l,{en:'Hello! I\'m Aru. Ask me about trips, prices for your budget, getting there, food and allergies, visas or payment.',zh:'你好！我是 Aru。可以问我线路、预算、交通、饮食和过敏、签证或付款。',ru:'Привет! Я Ару. Спросите про туры, цены под ваш бюджет, дорогу, питание и аллергии, визы или оплату.'});
   return LX(l,{en:'I\'m not sure I understood. I can help with: a trip for your days and budget (“2 days, 3000 yuan”), getting there by plane, train or car, food and allergies, visas, payment and documents. Or tap “Talk to a human”.',zh:'我不太确定你的意思。我可以帮你：按天数和预算挑线路（“2天，3000元”）、飞机/火车/汽车怎么去、饮食和过敏、签证、付款和证件。也可以点“转人工”。',ru:'Не уверен, что понял. Я могу помочь: подобрать тур под дни и бюджет («2 дня, 60 000 тенге»), рассказать, как добраться самолётом, поездом или машиной, про питание и аллергии, визы, оплату и документы. Или нажмите «Связаться с человеком».'});
 }
 const tw2zh=s=>(I18N[s]||[s])[0];
@@ -2396,81 +2406,90 @@ if(!I18N["A manager checks them within 24 hours."])I18N["A manager checks them w
 if(!I18N["WeChat Pay"])I18N["WeChat Pay"]=["微信支付", "WeChat Pay"];
 if(!I18N["2 days, 3000 yuan: which trip?"])I18N["2 days, 3000 yuan: which trip?"]=["2天，3000元，选哪条线路？", "2 Tage, 3000 Yuan: welche Reise?"];
 if(!I18N["I'm vegan: what will I eat?"])I18N["I'm vegan: what will I eat?"]=["我吃纯素，能吃什么？", "Ich bin vegan: was kann ich essen?"];
-const L_IDX=()=>st.lang==='zh'?0:st.lang==='de'?1:-1;
-const tw=s=>{const e=I18N[s];const i=L_IDX();return e&&i>=0?e[i]:s;};
+const L_IDX=()=>({zh:0,de:1,ru:2,kk:3})[st.lang]??-1;
+const tw=s=>{const e=I18N[s];const i=L_IDX();return e&&i>=0&&e[i]?e[i]:s;};
 const ZH=()=>st.lang==='zh';
-const CAT_W={nature:['自然','Natur'],history:['历史','Geschichte'],'great photo spots':['拍照胜地','tolle Fotospots'],lakes:['湖泊','Seen'],'easy walking':['轻松步行','leichtes Wandern']};
-const MODE_W={plane:['飞机','Flugzeug'],train:['火车','Zug'],car:['汽车','Auto'],Plane:['飞机','Flugzeug'],Train:['火车','Zug'],Car:['汽车','Auto']};
-const CONTACT_W={'WhatsApp chat with a manager':['与客服的 WhatsApp 聊天','einen WhatsApp-Chat mit einem Manager'],'Telegram chat with a manager':['与客服的 Telegram 聊天','einen Telegram-Chat mit einem Manager'],'WeChat chat with our Chinese-speaking manager':['与中文客服的微信聊天','einen WeChat-Chat mit unserem chinesischsprachigen Manager'],'a phone call to our call center':['拨打呼叫中心电话','einen Anruf bei unserem Callcenter'],'an email to our team':['给我们团队发邮件','eine E-Mail an unser Team'],'our page on Instagram and Xiaohongshu':['我们的 Instagram 和小红书主页','unsere Seite auf Instagram und Xiaohongshu']};
+/* one phrase in four languages: [中文, Deutsch, Русский, Қазақша] */
+const X4=(zh,de,ru,kk)=>[zh,de,ru,kk][L_IDX()];
+const ruN=(n,a,b,c)=>{n=Math.abs(+n)%100;const d=n%10;return n>10&&n<20?c:d===1?a:d>1&&d<5?b:c;};
+const CAT_W={nature:['自然','Natur','природа','табиғат'],history:['历史','Geschichte','история','тарих'],'great photo spots':['拍照胜地','tolle Fotospots','красивые места для фото','әдемі фото орындары'],lakes:['湖泊','Seen','озёра','көлдер'],'easy walking':['轻松步行','leichtes Wandern','лёгкие прогулки','жеңіл серуен']};
+const MODE_W={plane:['飞机','Flugzeug','самолёт','ұшақ'],train:['火车','Zug','поезд','пойыз'],car:['汽车','Auto','машина','көлік'],Plane:['飞机','Flugzeug','Самолёт','Ұшақ'],Train:['火车','Zug','Поезд','Пойыз'],Car:['汽车','Auto','Машина','Көлік']};
+const CONTACT_W={'WhatsApp chat with a manager':['与客服的 WhatsApp 聊天','einen WhatsApp-Chat mit einem Manager','чат WhatsApp с менеджером','менеджермен WhatsApp чаты'],'Telegram chat with a manager':['与客服的 Telegram 聊天','einen Telegram-Chat mit einem Manager','чат Telegram с менеджером','менеджермен Telegram чаты'],'WeChat chat with our Chinese-speaking manager':['与中文客服的微信聊天','einen WeChat-Chat mit unserem chinesischsprachigen Manager','чат WeChat с китайскоязычным менеджером','қытай тілді менеджермен WeChat чаты'],'a phone call to our call center':['拨打呼叫中心电话','einen Anruf bei unserem Callcenter','звонок в наш колл-центр','біздің колл-орталыққа қоңырау'],'an email to our team':['给我们团队发邮件','eine E-Mail an unser Team','письмо нашей команде','біздің командаға хат'],'our page on Instagram and Xiaohongshu':['我们的 Instagram 和小红书主页','unsere Seite auf Instagram und Xiaohongshu','нашу страницу в Instagram и Xiaohongshu','Instagram мен Xiaohongshu-дағы парақшамыз']};
 const pick=(o,k)=>{const e=o[k];return e?e[L_IDX()]:k;};
-function trTravel(s){let m=s.match(/^Already in (.+): hotel pickup included$/);if(m)return ZH()?`已在${tw(m[1])||m[1]}：含酒店接送`:`Bereits in ${m[1]}: Hotelabholung inklusive`;
-  m=s.match(/^(Plane|Train|Car) from (.+) to (.+), (.+)$/);if(m)return ZH()?`${pick(MODE_W,m[1])}：${tw(m[2])}→${tw(m[3])}，${trCore(m[4])}`:`${pick(MODE_W,m[1])} von ${m[2]} nach ${m[3]}, ${trCore(m[4])}`;return s;}
-const CITY_ZH={Almaty:'阿拉木图',Astana:'阿斯塔纳',Turkestan:'突厥斯坦',Aktau:'阿克套',Shymkent:'奇姆肯特',Oskemen:'厄斯克门','Charyn Canyon':'恰伦峡谷','Saty village':'萨特村',Burabay:'布拉拜'};
-Object.entries(CITY_ZH).forEach(([k,v])=>{if(!I18N[k])I18N[k]=[v,k];});
+function trTravel(s){let m=s.match(/^Already in (.+): hotel pickup included$/);if(m)return X4(`已在${tw(m[1])}：含酒店接送`,`Bereits in ${m[1]}: Hotelabholung inklusive`,`Уже в городе ${tw(m[1])}: трансфер из отеля включён`,`${tw(m[1])} қаласындасыз: қонақүйден алып кету кіреді`);
+  m=s.match(/^(Plane|Train|Car) from (.+) to (.+), (.+)$/);if(m)return X4(`${pick(MODE_W,m[1])}：${tw(m[2])}→${tw(m[3])}，${trCore(m[4])}`,`${pick(MODE_W,m[1])} von ${m[2]} nach ${m[3]}, ${trCore(m[4])}`,`${pick(MODE_W,m[1])}: ${tw(m[2])} → ${tw(m[3])}, ${trCore(m[4])}`,`${pick(MODE_W,m[1])}: ${tw(m[2])} → ${tw(m[3])}, ${trCore(m[4])}`);return s;}
+const CITY_ZH={Almaty:['阿拉木图','Almaty','Алматы','Алматы'],Astana:['阿斯塔纳','Astana','Астана','Астана'],Turkestan:['突厥斯坦','Turkestan','Туркестан','Түркістан'],Aktau:['阿克套','Aktau','Актау','Ақтау'],Shymkent:['奇姆肯特','Schymkent','Шымкент','Шымкент'],Oskemen:['厄斯克门','Öskemen','Усть-Каменогорск','Өскемен'],'Charyn Canyon':['恰伦峡谷','Charyn-Canyon','Чарынский каньон','Шарын шатқалы'],'Saty village':['萨特村','Dorf Saty','село Саты','Саты ауылы'],Burabay:['布拉拜','Burabay','Бурабай','Бурабай']};
+Object.entries(CITY_ZH).forEach(([k,v])=>{const e=I18N[k];if(!e)I18N[k]=v.slice();else v.forEach((x,i)=>{if(!e[i])e[i]=x;});});
+const nightsW=n=>X4(`${n}晚`,`${n} ${n==1?'Nacht':'Nächte'}`,`${n} ${ruN(n,'ночь','ночи','ночей')}`,`${n} түн`);
+const daysW=n=>X4(`${n}天`,`${n} Tage`,`${n} ${ruN(n,'день','дня','дней')}`,`${n} күн`);
 const PAT=[
- [/^(\d+) days$/,m=>ZH()?`${m[1]}天`:`${m[1]} Tage`],
- [/^from (.+)$/,m=>ZH()?`从${tw(m[1])}出发`:`ab ${m[1]}`],
- [/^Starts in (.+)$/,m=>ZH()?`${tw(m[1])}出发`:`Start in ${m[1]}`],
- [/^Level: (.+)$/,m=>ZH()?`难度：${tw(m[1])}`:`Niveau: ${tw(m[1])}`],
- [/^Day (\d+)$/,m=>ZH()?`第${m[1]}天`:`Tag ${m[1]}`],
- [/^(.+) · (\d+) years guiding$/,m=>ZH()?`${tw(m[1])} · 带团${m[2]}年`:`${tw(m[1])} · ${m[2]} Jahre als Guide`],
- [/^(\d+) years guiding · (\d+) reviews$/,m=>ZH()?`带团${m[1]}年 · ${m[2]}条评价`:`${m[1]} Jahre als Guide · ${m[2]} Bewertungen`],
- [/^Read (\d+) reviews$/,m=>ZH()?`查看${m[1]}条评价`:`${m[1]} Bewertungen lesen`],
- [/^Read reviews of (.+)$/,m=>ZH()?`查看${m[1]}的评价`:`Bewertungen von ${m[1]} lesen`],
- [/^Reviews of (.+)$/,m=>ZH()?`${m[1]}的评价`:`Bewertungen von ${m[1]}`],
- [/^· (\d+) sample reviews · (.+)$/,m=>ZH()?`· ${m[1]}条示例评价 · ${tw(m[2])}`:`· ${m[1]} Beispielbewertungen · ${tw(m[2])}`],
- [/^(\d+) sample reviews$/,m=>ZH()?`${m[1]}条示例评价`:`${m[1]} Beispielbewertungen`],
- [/^All trips · (\d+)$/,m=>ZH()?`全部线路 · ${m[1]}`:`Alle Reisen · ${m[1]}`],
- [/^(.+) · sample review$/,m=>ZH()?`${tw(m[1])} · 示例评价`:`${tw(m[1])} · Beispielbewertung`],
- [/^(.+) · (\d+) days$/,m=>ZH()?`${tw(m[1])} · ${m[2]}天`:`${tw(m[1])} · ${m[2]} Tage`],
+ [/^(\d+) days$/,m=>daysW(m[1])],
+ [/^from (.+)$/,m=>X4(`从${tw(m[1])}出发`,`ab ${m[1]}`,`от ${tw(m[1])}`,`${tw(m[1])} бастап`)],
+ [/^Starts in (.+)$/,m=>X4(`${tw(m[1])}出发`,`Start in ${m[1]}`,`Старт: ${tw(m[1])}`,`Басталуы: ${tw(m[1])}`)],
+ [/^Level: (.+)$/,m=>X4(`难度：${tw(m[1])}`,`Niveau: ${tw(m[1])}`,`Сложность: ${tw(m[1])}`,`Күрделілігі: ${tw(m[1])}`)],
+ [/^Day (\d+)$/,m=>X4(`第${m[1]}天`,`Tag ${m[1]}`,`День ${m[1]}`,`${m[1]}-күн`)],
+ [/^(.+) · (\d+) years guiding$/,m=>X4(`${tw(m[1])} · 带团${m[2]}年`,`${tw(m[1])} · ${m[2]} Jahre als Guide`,`${tw(m[1])} · гид ${m[2]} ${ruN(m[2],'год','года','лет')}`,`${tw(m[1])} · ${m[2]} жыл гид`)],
+ [/^(\d+) years guiding · (\d+) reviews$/,m=>X4(`带团${m[1]}年 · ${m[2]}条评价`,`${m[1]} Jahre als Guide · ${m[2]} Bewertungen`,`гид ${m[1]} ${ruN(m[1],'год','года','лет')} · ${m[2]} ${ruN(m[2],'отзыв','отзыва','отзывов')}`,`${m[1]} жыл гид · ${m[2]} пікір`)],
+ [/^Read (\d+) reviews$/,m=>X4(`查看${m[1]}条评价`,`${m[1]} Bewertungen lesen`,`Читать ${m[1]} ${ruN(m[1],'отзыв','отзыва','отзывов')}`,`${m[1]} пікірді оқу`)],
+ [/^Read reviews of (.+)$/,m=>X4(`查看${m[1]}的评价`,`Bewertungen von ${m[1]} lesen`,`Отзывы о гиде ${m[1]}`,`${m[1]} туралы пікірлер`)],
+ [/^Reviews of (.+)$/,m=>X4(`${m[1]}的评价`,`Bewertungen von ${m[1]}`,`Отзывы: ${m[1]}`,`Пікірлер: ${m[1]}`)],
+ [/^· (\d+) sample reviews · (.+)$/,m=>X4(`· ${m[1]}条示例评价 · ${tw(m[2])}`,`· ${m[1]} Beispielbewertungen · ${tw(m[2])}`,`· ${m[1]} ${ruN(m[1],'пример отзыва','примера отзывов','примеров отзывов')} · ${tw(m[2])}`,`· ${m[1]} үлгі пікір · ${tw(m[2])}`)],
+ [/^(\d+) sample reviews$/,m=>X4(`${m[1]}条示例评价`,`${m[1]} Beispielbewertungen`,`${m[1]} ${ruN(m[1],'пример отзыва','примера отзывов','примеров отзывов')}`,`${m[1]} үлгі пікір`)],
+ [/^(\d+) of (\d+) trips$/,m=>X4(`${m[2]}条线路中的${m[1]}条`,`${m[1]} von ${m[2]} Reisen`,`${m[1]} из ${m[2]} маршрутов`,`${m[2]} маршруттың ${m[1]}`)],
+ [/^All trips · (\d+)$/,m=>X4(`全部线路 · ${m[1]}`,`Alle Reisen · ${m[1]}`,`Все маршруты · ${m[1]}`,`Барлық маршрут · ${m[1]}`)],
+ [/^(.+) · sample review$/,m=>X4(`${tw(m[1])} · 示例评价`,`${tw(m[1])} · Beispielbewertung`,`${tw(m[1])} · пример отзыва`,`${tw(m[1])} · үлгі пікір`)],
+ [/^(.+) · (\d+) days$/,m=>`${tw(m[1])} · ${daysW(m[2])}`],
  [/^(.+) · (\d+)$/,m=>I18N[m[1]]?`${tw(m[1])} · ${m[2]}`:null],
- [/^Matches: (.+)\.$/,m=>{const w=m[1].split(', ').map(x=>pick(CAT_W,x));return ZH()?`匹配：${w.join('、')}。`:`Passt zu: ${w.join(', ')}.`;}],
- [/^You have (\d+) days left: add$/,m=>ZH()?`您还剩${m[1]}天，可以再加上`:`Sie haben noch ${m[1]} Tage: fügen Sie hinzu`],
- [/^See this trip · (.+)$/,m=>ZH()?`查看此线路 · ${m[1]}`:`Reise ansehen · ${m[1]}`],
- [/^▦ (\d+) photos$/,m=>ZH()?`▦ ${m[1]}张照片`:`▦ ${m[1]} Fotos`],
- [/^(\d+) nights? included\. Pick where you sleep; upgrades change the price per traveler\.$/,m=>ZH()?`含${m[1]}晚住宿。请选择住处，升级会改变每位游客的价格。`:`${m[1]} ${m[1]==='1'?'Nacht':'Nächte'} inklusive. Wählen Sie Ihre Unterkunft; Upgrades ändern den Preis pro Person.`],
- [/^about (\d+) kg per (person|car)$/,m=>ZH()?`${m[2]==='car'?'每车':'每人'}约${m[1]}公斤`:`etwa ${m[1]} kg pro ${m[2]==='car'?'Auto':'Person'}`],
- [/^([+−])(.+) per night per person$/,m=>ZH()?`每人每晚 ${m[1]}${m[2]}`:`${m[1]}${m[2]} pro Nacht und Person`],
- [/^(.+) per person$/,m=>ZH()?`每人 ${m[1]}`:`${m[1]} pro Person`],
- [/^(.+) per car \(up to 4 people\)$/,m=>ZH()?`每车 ${m[1]}（最多4人）`:`${m[1]} pro Auto (bis 4 Personen)`],
- [/^about (\d+) L$/,m=>ZH()?`约${m[1]}升`:`etwa ${m[1]} L`],
- [/^about (\d+) h$/,m=>ZH()?`约${m[1]}小时`:`etwa ${m[1]} Std.`],
- [/^(\d+) h (\d+) min$/,m=>ZH()?`${m[1]}小时${m[2]}分钟`:`${m[1]} Std. ${m[2]} Min.`],
- [/^(\d+) h$/,m=>ZH()?`${m[1]}小时`:`${m[1]} Std.`],
- [/^([\d,]+) km$/,m=>ZH()?`${m[1]}公里`:`${m[1].replace(/,/g,'.')} km`],
- [/^Not possible: there is no water route to (.+)\. Passenger boats in Kazakhstan run only on the Caspian Sea, far from this tour\.$/,m=>ZH()?`无法乘船：没有通往${tw(m[1])}的水路。哈萨克斯坦的客船只在里海航行，离本线路很远。`:`Nicht möglich: Es gibt keinen Wasserweg nach ${m[1]}. Passagierschiffe fahren in Kasachstan nur auf dem Kaspischen Meer, weit weg von dieser Tour.`],
- [/^The tour starts in (.+)\. Pickup from your hotel is included in the price\.$/,m=>ZH()?`行程从${tw(m[1])}出发，价格已含酒店接送。`:`Die Tour beginnt in ${m[1]}. Die Abholung am Hotel ist im Preis inbegriffen.`],
- [/^Sample hotels and ratings for the prototype\. Check real places near (.+):$/,m=>ZH()?`示例酒店和评分仅用于原型。查看${tw(m[1])}附近的真实住宿：`:`Beispielhotels und -bewertungen für den Prototyp. Echte Unterkünfte in der Nähe von ${m[1]}:`],
- [/^≈ (.+) ₸ · you pay in (\w+)$/,m=>ZH()?`≈ ${m[1]} ₸ · 以 ${m[2]} 支付`:`≈ ${m[1]} ₸ · Zahlung in ${m[2]}`],
- [/^Book: (.+)$/,m=>ZH()?`预订：${tw(m[1])}`:`Buchen: ${tw(m[1])}`],
- [/^(\d+) seats left$/,m=>ZH()?`剩余${m[1]}个座位`:`noch ${m[1]} Plätze`],
- [/^Traveler (\d+): full name$/,m=>ZH()?`游客${m[1]}：全名`:`Reisende(r) ${m[1]}: vollständiger Name`],
+ [/^Matches: (.+)\.$/,m=>{const w=m[1].split(', ').map(x=>pick(CAT_W,x));return X4(`匹配：${w.join('、')}。`,`Passt zu: ${w.join(', ')}.`,`Подходит: ${w.join(', ')}.`,`Сәйкес: ${w.join(', ')}.`);}],
+ [/^You have (\d+) days left: add$/,m=>X4(`您还剩${m[1]}天，可以再加上`,`Sie haben noch ${m[1]} Tage: fügen Sie hinzu`,`У вас остаётся ${daysW(m[1])}: добавьте`,`Сізде тағы ${m[1]} күн бар: қосыңыз`)],
+ [/^See this trip · (.+)$/,m=>X4(`查看此线路 · ${m[1]}`,`Reise ansehen · ${m[1]}`,`Открыть маршрут · ${m[1]}`,`Маршрутты ашу · ${m[1]}`)],
+ [/^▦ (\d+) photos$/,m=>X4(`▦ ${m[1]}张照片`,`▦ ${m[1]} Fotos`,`▦ ${m[1]} фото`,`▦ ${m[1]} фото`)],
+ [/^(\d+) nights? included\. Pick where you sleep; upgrades change the price per traveler\.$/,m=>X4(`含${m[1]}晚住宿。请选择住处，升级会改变每位游客的价格。`,`${m[1]} ${m[1]==='1'?'Nacht':'Nächte'} inklusive. Wählen Sie Ihre Unterkunft; Upgrades ändern den Preis pro Person.`,`Включено: ${nightsW(m[1])}. Выберите, где ночевать; улучшение меняет цену на человека.`,`${nightsW(m[1])} кіреді. Қай жерде түнейтініңізді таңдаңыз; жақсартылған нұсқа бір адамның бағасын өзгертеді.`)],
+ [/^about (\d+) kg per (person|car)$/,m=>X4(`${m[2]==='car'?'每车':'每人'}约${m[1]}公斤`,`etwa ${m[1]} kg pro ${m[2]==='car'?'Auto':'Person'}`,`около ${m[1]} кг на ${m[2]==='car'?'машину':'человека'}`,`${m[2]==='car'?'бір көлікке':'бір адамға'} шамамен ${m[1]} кг`)],
+ [/^([+−])(.+) per night per person$/,m=>X4(`每人每晚 ${m[1]}${m[2]}`,`${m[1]}${m[2]} pro Nacht und Person`,`${m[1]}${m[2]} за ночь с человека`,`бір адамға бір түнге ${m[1]}${m[2]}`)],
+ [/^(.+) per person$/,m=>X4(`每人 ${m[1]}`,`${m[1]} pro Person`,`${m[1]} с человека`,`бір адамға ${m[1]}`)],
+ [/^(.+) per car \(up to 4 people\)$/,m=>X4(`每车 ${m[1]}（最多4人）`,`${m[1]} pro Auto (bis 4 Personen)`,`${m[1]} за машину (до 4 человек)`,`бір көлікке ${m[1]} (4 адамға дейін)`)],
+ [/^about (\d+) L$/,m=>X4(`约${m[1]}升`,`etwa ${m[1]} L`,`около ${m[1]} л`,`шамамен ${m[1]} л`)],
+ [/^about (\d+) h$/,m=>X4(`约${m[1]}小时`,`etwa ${m[1]} Std.`,`около ${m[1]} ч`,`шамамен ${m[1]} сағ`)],
+ [/^(\d+) h (\d+) min$/,m=>X4(`${m[1]}小时${m[2]}分钟`,`${m[1]} Std. ${m[2]} Min.`,`${m[1]} ч ${m[2]} мин`,`${m[1]} сағ ${m[2]} мин`)],
+ [/^(\d+) h$/,m=>X4(`${m[1]}小时`,`${m[1]} Std.`,`${m[1]} ч`,`${m[1]} сағ`)],
+ [/^([\d,]+) km$/,m=>X4(`${m[1]}公里`,`${m[1].replace(/,/g,'.')} km`,`${m[1].replace(/,/g,' ')} км`,`${m[1].replace(/,/g,' ')} км`)],
+ [/^Not possible: there is no water route to (.+)\. Passenger boats in Kazakhstan run only on the Caspian Sea, far from this tour\.$/,m=>X4(`无法乘船：没有通往${tw(m[1])}的水路。哈萨克斯坦的客船只在里海航行，离本线路很远。`,`Nicht möglich: Es gibt keinen Wasserweg nach ${m[1]}. Passagierschiffe fahren in Kasachstan nur auf dem Kaspischen Meer, weit weg von dieser Tour.`,`Невозможно: до места «${tw(m[1])}» нет водного пути. Пассажирские суда в Казахстане ходят только по Каспию, далеко от этого маршрута.`,`Мүмкін емес: «${tw(m[1])}» дейін су жолы жоқ. Қазақстанда жолаушылар кемелері тек Каспийде жүреді, бұл маршруттан алыс.`)],
+ [/^The tour starts in (.+)\. Pickup from your hotel is included in the price\.$/,m=>X4(`行程从${tw(m[1])}出发，价格已含酒店接送。`,`Die Tour beginnt in ${m[1]}. Die Abholung am Hotel ist im Preis inbegriffen.`,`Маршрут начинается: ${tw(m[1])}. Трансфер из отеля входит в цену.`,`Маршрут басталатын жер: ${tw(m[1])}. Қонақүйден алып кету бағаға кіреді.`)],
+ [/^Sample hotels and ratings for the prototype\. Check real places near (.+):$/,m=>X4(`示例酒店和评分仅用于原型。查看${tw(m[1])}附近的真实住宿：`,`Beispielhotels und -bewertungen für den Prototyp. Echte Unterkünfte in der Nähe von ${m[1]}:`,`Отели и оценки здесь — примеры для прототипа. Настоящее жильё рядом (${tw(m[1])}):`,`Қонақүйлер мен бағалар — прототипке арналған үлгі. Жақын жердегі нақты тұрғын үй (${tw(m[1])}):`)],
+ [/^≈ (.+) ₸ · you pay in (\w+)$/,m=>X4(`≈ ${m[1]} ₸ · 以 ${m[2]} 支付`,`≈ ${m[1]} ₸ · Zahlung in ${m[2]}`,`≈ ${m[1]} ₸ · оплата в ${m[2]}`,`≈ ${m[1]} ₸ · төлем ${m[2]}`)],
+ [/^Book: (.+)$/,m=>X4(`预订：${tw(m[1])}`,`Buchen: ${tw(m[1])}`,`Бронь: ${tw(m[1])}`,`Брондау: ${tw(m[1])}`)],
+ [/^(\d+) seats left$/,m=>X4(`剩余${m[1]}个座位`,`noch ${m[1]} Plätze`,`${ruN(m[1],'осталось','осталось','осталось')} ${m[1]} ${ruN(m[1],'место','места','мест')}`,`${m[1]} орын қалды`)],
+ [/^Traveler (\d+): full name$/,m=>X4(`游客${m[1]}：全名`,`Reisende(r) ${m[1]}: vollständiger Name`,`Путешественник ${m[1]}: полное имя`,`${m[1]}-саяхатшы: толық аты-жөні`)],
  [/^(\d+) × (.+)$/,m=>`${m[1]} × ${tw(m[2])}`],
- [/^Getting there: (.+)\.$/,m=>ZH()?`如何到达：${trTravel(m[1])}。`:`Anreise: ${trTravel(m[1])}.`],
- [/^Getting there · (\w+)$/,m=>ZH()?`交通 · ${pick(MODE_W,m[1])}`:`Anreise · ${pick(MODE_W,m[1])}`],
+ [/^Getting there: (.+)\.$/,m=>X4(`如何到达：${trTravel(m[1])}。`,`Anreise: ${trTravel(m[1])}.`,`Как добраться: ${trTravel(m[1])}.`,`Қалай жетуге болады: ${trTravel(m[1])}.`)],
+ [/^Getting there · (\w+)$/,m=>X4(`交通 · ${pick(MODE_W,m[1])}`,`Anreise · ${pick(MODE_W,m[1])}`,`Дорога · ${pick(MODE_W,m[1])}`,`Жол · ${pick(MODE_W,m[1])}`)],
  [/^(Already in .+|(Plane|Train|Car) from .+)\.$/,m=>trTravel(m[1])+(ZH()?'。':'.')],
- [/^Your group of (\d+) travels in a minibus\.$/,m=>ZH()?`您的${m[1]}人团队乘坐小巴出行。`:`Ihre Gruppe von ${m[1]} reist im Kleinbus.`],
- [/^Your group of (\d+) travels in an SUV( with 4×4 for the mountain road)?\.$/,m=>ZH()?`您的${m[1]}人团队乘坐SUV出行${m[2]?'（山路四驱）':''}。`:`Ihre Gruppe von ${m[1]} reist im SUV${m[2]?' mit 4×4 für die Bergstraße':''}.`],
- [/^Rooms: (\d+) at (.+?)(; children share with parents)?\.$/,m=>ZH()?`房间：${m[2]} ${m[1]}间${m[3]?'；儿童与父母同住':''}。`:`Zimmer: ${m[1]} im ${m[2]}${m[3]?'; Kinder schlafen bei den Eltern':''}.`],
- [/^Where you stay · (\d+) nights?$/,m=>ZH()?`住宿 · ${m[1]}晚`:`Unterkunft · ${m[1]} ${m[1]==='1'?'Nacht':'Nächte'}`],
- [/^Pay (.+) \(demo\)$/,m=>ZH()?`支付 ${m[1]}（演示）`:`${m[1]} bezahlen (Demo)`],
- [/^Hi (.+),$/,m=>ZH()?`${m[1]}，您好：`:`Hallo ${m[1]},`],
- [/^(.+) · (.+) · (\d+) travelers? · paid (.+)$/,m=>ZH()?`${tw(m[1])} · ${m[2]} · ${m[3]}位游客 · 已付 ${m[4]}`:`${tw(m[1])} · ${m[2]} · ${m[3]} Reisende · bezahlt ${m[4]}`],
- [/^Confirmed: (.+), (.+) \((SR-\w+)\)$/,m=>ZH()?`已确认：${tw(m[1])}，${m[2]}（${m[3]}）`:`Bestätigt: ${tw(m[1])}, ${m[2]} (${m[3]})`],
- [/^Demo: in the real product this opens (.+)\. These contacts are not real\.$/,m=>ZH()?`演示：正式产品中，这里会打开${pick(CONTACT_W,m[1])}。这些联系方式不是真实的。`:`Demo: Im echten Produkt öffnet sich hier ${pick(CONTACT_W,m[1])}. Diese Kontakte sind nicht echt.`],
- [/^Thank you, (.+)! In the real product a manager would call you back in (.+)\. Demo: nothing was sent\.$/,m=>ZH()?`谢谢，${m[1]}！正式产品中，客服会用${m[2]}给您回电。演示：未发送任何信息。`:`Danke, ${m[1]}! Im echten Produkt würde ein Manager Sie auf ${m[2]} zurückrufen. Demo: Es wurde nichts gesendet.`],
- [/^(\d+)\. (.+) · tap for 360°$/,m=>ZH()?`${m[1]}. ${tw(m[2])} · 点击查看360°`:`${m[1]}. ${tw(m[2])} · für 360° tippen`],
+ [/^Your group of (\d+) travels in a minibus\.$/,m=>X4(`您的${m[1]}人团队乘坐小巴出行。`,`Ihre Gruppe von ${m[1]} reist im Kleinbus.`,`Ваша группа из ${m[1]} человек едет на микроавтобусе.`,`${m[1]} адамнан тұратын тобыңыз шағын автобуспен жүреді.`)],
+ [/^Your group of (\d+) travels in an SUV( with 4×4 for the mountain road)?\.$/,m=>X4(`您的${m[1]}人团队乘坐SUV出行${m[2]?'（山路四驱）':''}。`,`Ihre Gruppe von ${m[1]} reist im SUV${m[2]?' mit 4×4 für die Bergstraße':''}.`,`Ваша группа из ${m[1]} человек едет на внедорожнике${m[2]?' с полным приводом для горной дороги':''}.`,`${m[1]} адамнан тұратын тобыңыз жол талғамайтын көлікпен жүреді${m[2]?' (тау жолына арналған толық жетекті)':''}.`)],
+ [/^Rooms: (\d+) at (.+?)(; children share with parents)?\.$/,m=>X4(`房间：${m[2]} ${m[1]}间${m[3]?'；儿童与父母同住':''}。`,`Zimmer: ${m[1]} im ${m[2]}${m[3]?'; Kinder schlafen bei den Eltern':''}.`,`Номера: ${m[1]} в «${m[2]}»${m[3]?'; дети живут с родителями':''}.`,`Бөлмелер: «${m[2]}» ішінде ${m[1]}${m[3]?'; балалар ата-анасымен бірге':''}.`)],
+ [/^Where you stay · (\d+) nights?$/,m=>X4(`住宿 · ${m[1]}晚`,`Unterkunft · ${m[1]} ${m[1]==='1'?'Nacht':'Nächte'}`,`Где жить · ${nightsW(m[1])}`,`Тұратын жер · ${nightsW(m[1])}`)],
+ [/^Pay (.+) \(demo\)$/,m=>X4(`支付 ${m[1]}（演示）`,`${m[1]} bezahlen (Demo)`,`Оплатить ${m[1]} (демо)`,`${m[1]} төлеу (демо)`)],
+ [/^Hi (.+),$/,m=>X4(`${m[1]}，您好：`,`Hallo ${m[1]},`,`Здравствуйте, ${m[1]}!`,`Сәлеметсіз бе, ${m[1]}!`)],
+ [/^(.+) · (.+) · (\d+) travelers? · paid (.+)$/,m=>X4(`${tw(m[1])} · ${m[2]} · ${m[3]}位游客 · 已付 ${m[4]}`,`${tw(m[1])} · ${m[2]} · ${m[3]} Reisende · bezahlt ${m[4]}`,`${tw(m[1])} · ${m[2]} · ${m[3]} ${ruN(m[3],'путешественник','путешественника','путешественников')} · оплачено ${m[4]}`,`${tw(m[1])} · ${m[2]} · ${m[3]} саяхатшы · төленді ${m[4]}`)],
+ [/^Confirmed: (.+?), (.+) \((SR-\w+)\)$/,m=>X4(`已确认：${tw(m[1])}，${m[2]}（${m[3]}）`,`Bestätigt: ${tw(m[1])}, ${m[2]} (${m[3]})`,`Подтверждено: ${tw(m[1])}, ${m[2]} (${m[3]})`,`Расталды: ${tw(m[1])}, ${m[2]} (${m[3]})`)],
+ [/^Demo: in the real product this opens (.+)\. These contacts are not real\.$/,m=>X4(`演示：正式产品中，这里会打开${pick(CONTACT_W,m[1])}。这些联系方式不是真实的。`,`Demo: Im echten Produkt öffnet sich hier ${pick(CONTACT_W,m[1])}. Diese Kontakte sind nicht echt.`,`Демо: в настоящем продукте здесь откроется ${pick(CONTACT_W,m[1])}. Эти контакты ненастоящие.`,`Демо: нақты өнімде мұнда ${pick(CONTACT_W,m[1])} ашылады. Бұл байланыстар шынайы емес.`)],
+ [/^Thank you, (.+)! In the real product a manager would call you back in (.+)\. Demo: nothing was sent\.$/,m=>X4(`谢谢，${m[1]}！正式产品中，客服会用${m[2]}给您回电。演示：未发送任何信息。`,`Danke, ${m[1]}! Im echten Produkt würde ein Manager Sie auf ${m[2]} zurückrufen. Demo: Es wurde nichts gesendet.`,`Спасибо, ${m[1]}! В настоящем продукте менеджер перезвонил бы вам (${m[2]}). Демо: ничего не отправлено.`,`Рақмет, ${m[1]}! Нақты өнімде менеджер сізге қайта қоңырау шалар еді (${m[2]}). Демо: ештеңе жіберілмеді.`)],
+ [/^(\d+)\. (.+) · tap for 360°$/,m=>X4(`${m[1]}. ${tw(m[2])} · 点击查看360°`,`${m[1]}. ${tw(m[2])} · für 360° tippen`,`${m[1]}. ${tw(m[2])} · нажмите для 360°`,`${m[1]}. ${tw(m[2])} · 360° үшін басыңыз`)],
  [/^(\d+)\. (.+)$/,m=>I18N[m[2]]?`${m[1]}. ${tw(m[2])}`:null],
  [/^(\S+) \((.+)\)\.$/,m=>I18N[m[2]]?(ZH()?`${m[1]}（${tw(m[2])}）。`:`${m[1]} (${tw(m[2])}).`):null],
- [/^(.+), (\d+) nights?\.$/,m=>ZH()?`${m[1]}，${m[2]}晚。`:`${m[1]}, ${m[2]} ${m[2]==='1'?'Nacht':'Nächte'}.`],
+ [/^(.+), (\d+) nights?\.$/,m=>X4(`${m[1]}，${m[2]}晚。`,`${m[1]}, ${m[2]} ${m[2]==='1'?'Nacht':'Nächte'}.`,`${m[1]}, ${nightsW(m[2])}.`,`${m[1]}, ${nightsW(m[2])}.`)],
  [/\((\d+), (adult|child|senior|infant)\)/,m=>null]
 ];
-const CATW={adult:['成人','Erwachsene(r)'],child:['儿童','Kind'],senior:['老人','Senior(in)'],infant:['婴儿','Kleinkind']};
-function trCore(s){if(L_IDX()<0)return s;if(I18N[s])return tw(s);if(/\(\d+, (adult|child|senior|infant)\)/.test(s))return s.replace(/\((\d+), (adult|child|senior|infant)\)/g,(_,a,c)=>ZH()?`（${a}岁，${CATW[c][0]}）`:`(${a}, ${CATW[c][1]})`);for(const [re,f] of PAT){const m=s.match(re);if(m){const r=f(m);if(r!=null)return r;}}return s;}
+const CATW={adult:['成人','Erwachsene(r)','взрослый','ересек'],child:['儿童','Kind','ребёнок','бала'],senior:['老人','Senior(in)','пенсионер','зейнеткер'],infant:['婴儿','Kleinkind','младенец','нәресте']};
+function trCore(s){if(L_IDX()<0)return s;if(I18N[s]&&I18N[s][L_IDX()])return tw(s);if(/\(\d+, (adult|child|senior|infant)\)/.test(s))return s.replace(/\((\d+), (adult|child|senior|infant)\)/g,(_,a,c)=>ZH()?`（${a}岁，${CATW[c][0]}）`:`(${a}, ${CATW[c][L_IDX()]})`);for(const [re,f] of PAT){const m=s.match(re);if(m){const r=f(m);if(r!=null)return r;}}return s;}
+/* more languages: parks feature (中文, Deutsch) and Russian + Kazakh for everything: I18N[key] = [中文, Deutsch, Русский, Қазақша] */
+(function(){const put=(src,off)=>{if(typeof src==='undefined'||!src)return;for(const k in src){const e=I18N[k]||(I18N[k]=[]);src[k].forEach((v,n)=>{if(v)e[off+n]=v;});}};
+  put(typeof PK_I18N!=='undefined'?PK_I18N:null,0);put(typeof I18N_RK!=='undefined'?I18N_RK:null,2);put(typeof I18N_NEW!=='undefined'?I18N_NEW:null,0);})();
 const ORIG=new WeakMap();
 function trNode(n){const rec=ORIG.get(n);const src=rec&&n.data===rec.out?rec.orig:n.data;const core=src.trim();if(!core)return;
   const out=src.match(/^\s*/)[0]+trCore(core.replace(/\s+/g,' '))+src.match(/\s*$/)[0];ORIG.set(n,{orig:src,out});if(n.data!==out)n.data=out;}
-function trPh(el){if(!el.dataset.phOrig)el.dataset.phOrig=el.getAttribute('placeholder');const o=el.dataset.phOrig;const e=I18N['@'+o];el.setAttribute('placeholder',e&&L_IDX()>=0?e[L_IDX()]:o);}
+function trPh(el){if(!el.dataset.phOrig)el.dataset.phOrig=el.getAttribute('placeholder');const o=el.dataset.phOrig;const e=I18N['@'+o];el.setAttribute('placeholder',e&&L_IDX()>=0&&e[L_IDX()]?e[L_IDX()]:o);}
 const skip=n=>{const p=n.parentElement;return !p||p.closest('script,style,svg,[translate="no"]');};
 function trTree(root){if(root.nodeType===3){if(!skip(root))trNode(root);return;}if(root.nodeType!==1)return;
   const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let n;while(n=w.nextNode())if(!skip(n))trNode(n);
@@ -2486,7 +2505,6 @@ renderHome();renderConveyor();applyLang();initHomeMap();
 {const init=parseHash();replace(init);if(init.view!=='home'||init.section)apply(init);}
 </script>
 <script src="assets/parks/qrcode.js"></script>
-<script src="assets/parks/i18n.js"></script>
 <script src="assets/parks/parks.js"></script>
 <script type="module" src="assets/intro/intro.js"></script>
 </body>
