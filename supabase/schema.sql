@@ -1,11 +1,13 @@
--- Samruk Travel · park reports, park office panel and safety check-ins.
+-- Samruk Travel · park reports, park office panel, safety check-ins, local hosts, signed passes and host applications.
 -- Run once in Supabase: Dashboard → SQL Editor → New query → paste → Run.
 -- Then put the project URL and the anon (publishable) key into assets/parks/config.js.
 --
 -- Demo security model (say it out loud in the pitch):
 --   * anyone with the site can send a report and read reports (they are public, like map pins);
---   * the park office panel has no login in this prototype, so anyone can mark a report fixed;
---     a real version gives rangers a login and moves these policies to the "authenticated" role;
+--   * marking a report fixed needs no login yet; the office's other rights (host applications and their
+--     documents, marking a place as checked) need a park office login and go through functions/office;
+--   * facility passes are issued and signed only on the server (functions/pass-issue), so none can be made in a browser;
+--   * owners' applications and property documents are closed to the browser (functions/host-apply files them);
 --   * check-ins hold a private phone number: the table is closed to the browser; the site writes
 --     through the functions below and reads only the masked view checkins_public.
 
@@ -116,12 +118,31 @@ drop policy if exists "hosts readable" on public.hosts;
 drop policy if exists "hosts write" on public.hosts;
 drop policy if exists "hosts update" on public.hosts;
 create policy "hosts readable" on public.hosts for select to anon, authenticated using (true);
-create policy "hosts write" on public.hosts for insert to anon, authenticated with check (true);
 create policy "hosts update" on public.hosts for update to anon, authenticated using (true) with check (true);
-grant select, insert, update on public.hosts to anon, authenticated;
--- demo: anyone may edit a host and mark it checked. A real version gives hosts and rangers accounts.
+revoke insert, update on public.hosts from anon, authenticated;
+grant select on public.hosts to anon, authenticated;
+grant update (hours, svc, updated_at) on public.hosts to anon, authenticated;
+-- New places come only through the host application (functions/host-apply) and the park office's approval
+-- (functions/office); only the office can set "verified". Demo limit: hosts have no login yet, so anyone
+-- may change a place's prices and opening. A real version gives each approved host an account.
 
--- passes a visitor buys for one facility at one host; the host checks the QR, also offline
+-- the ten sample hosts the site shows, so the server can price and sign their passes
+insert into public.hosts (id, park, name, village, lat, lng, hours, svc, verified, rating) values
+ ('h-kgate','kolsai','Yurt café at the lake gate','Kolsai, lower lake',42.99985,78.33155,'08:00–21:00','{"toilet":{"p":200,"open":true},"water":{"p":300,"open":true},"charge":{"p":500,"open":true},"meal":{"p":2500,"open":true}}',true,4.6),
+ ('h-saty1','kolsai','Saty Ui guesthouse','Saty village',43.056,78.411,'07:00–23:00','{"toilet":{"p":200,"open":true},"shower":{"p":1000,"open":true},"water":{"p":300,"open":true},"charge":{"p":500,"open":true},"wifi":{"p":500,"open":true},"parking":{"p":1000,"open":true},"meal":{"p":3000,"open":true}}',true,4.8),
+ ('h-saty2','kolsai','Aigul homestay','Saty village',43.0545,78.4135,'08:00–22:00','{"toilet":{"p":150,"open":true},"shower":{"p":800,"open":true},"wifi":{"p":400,"open":true}}',true,4.7),
+ ('h-ctop','charyn','Guesthouse by the top car park','Charyn, top car park',43.3542,79.0716,'08:00–20:00','{"toilet":{"p":200,"open":true},"water":{"p":300,"open":true},"charge":{"p":500,"open":true},"wifi":{"p":500,"open":true}}',true,4.5),
+ ('h-criv','charyn','Canyon yurt camp by the river','Charyn, river',43.3583,79.0899,'09:00–21:00','{"toilet":{"p":200,"open":true},"shower":{"p":1200,"open":true},"meal":{"p":2800,"open":true}}',true,4.4),
+ ('h-bal','bigalmaty','Tea house on the lake road','Big Almaty gorge',43.0598,76.9816,'09:00–19:00','{"toilet":{"p":200,"open":true},"water":{"p":300,"open":true},"meal":{"p":2200,"open":true}}',true,4.6),
+ ('h-bur1','burabay','Okzhetpes guesthouse','Burabay village',53.0823,70.2928,'07:00–23:00','{"toilet":{"p":150,"open":true},"shower":{"p":800,"open":true},"charge":{"p":400,"open":true},"wifi":{"p":400,"open":true},"parking":{"p":800,"open":true}}',true,4.7),
+ ('h-bur2','burabay','Blue Bay lakeside café','Blue Bay',53.088,70.2556,'10:00–20:00','{"toilet":{"p":200,"open":true},"water":{"p":300,"open":true},"meal":{"p":2600,"open":true}}',true,4.3),
+ ('h-alt1','altynemel','Yurt camp at the dune car park','Singing Dune',43.8651,78.5566,'08:00–20:00','{"toilet":{"p":200,"open":true},"water":{"p":400,"open":true},"charge":{"p":500,"open":true}}',true,4.5),
+ ('h-alt2','altynemel','Basshi village guesthouse','Basshi village',44.1705,78.7635,'07:00–23:00','{"toilet":{"p":150,"open":true},"shower":{"p":900,"open":true},"wifi":{"p":400,"open":true},"meal":{"p":2800,"open":true}}',true,4.8)
+on conflict (id) do nothing;
+
+-- passes a visitor buys for one facility at one host; the host checks the QR, also offline.
+-- Passes are issued and signed only by functions/pass-issue (ECDSA P-256, the private key stays in the function);
+-- the site checks the signature with the public key in assets/parks/config.js.
 create table if not exists public.passes (
   id      text primary key check (id ~ '^[a-z0-9]{4,40}$'),
   host    text not null,
@@ -138,12 +159,46 @@ drop policy if exists "passes readable" on public.passes;
 drop policy if exists "passes insert" on public.passes;
 drop policy if exists "passes use" on public.passes;
 create policy "passes readable" on public.passes for select to anon, authenticated using (true);
-create policy "passes insert" on public.passes for insert to anon, authenticated with check (status = 'paid' and used_at is null);
 create policy "passes use" on public.passes for update to anon, authenticated using (status = 'paid') with check (status = 'used');
-revoke update on public.passes from anon, authenticated;
-grant select, insert on public.passes to anon, authenticated;
+revoke insert, update on public.passes from anon, authenticated;
+grant select on public.passes to anon, authenticated;
 grant update (status, used_at) on public.passes to anon, authenticated;
 -- a pass can be used once: the update only matches rows that are still 'paid'
+
+-- ---------- host applications: who owns the place and their right to the property ----------
+-- Closed to the browser. functions/host-apply files an application and stores the scan of the right document
+-- in the private bucket host-docs; functions/office (park office login) reads them and decides.
+create table if not exists public.host_applications (
+  id         text primary key,
+  token      text not null,                                  -- private: lets the applicant ask for the status
+  status     text not null default 'new' check (status in ('new','more','approved','rejected')),
+  owner_name text not null,
+  phone      text not null,
+  iin        text not null check (iin ~ '^[0-9]{12}$'),     -- IIN of a person or sole proprietor, BIN of a company
+  owner_kind text not null check (owner_kind in ('person','ip','too')),
+  place      jsonb not null,
+  basis      text not null check (basis in ('own','lease','use')),
+  cadastre   text not null,
+  cert_no    text,
+  cert_date  date,
+  doc_path   text,
+  doc_name   text,
+  checks     jsonb,
+  note       text,
+  host_id    text,
+  created_at timestamptz not null default now(),
+  decided_at timestamptz,
+  decided_by text
+);
+alter table public.host_applications enable row level security;   -- no policies: only the functions read and write it
+revoke all on public.host_applications from anon, authenticated;
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+  values ('host-docs', 'host-docs', false, 5242880, array['application/pdf','image/jpeg','image/png'])
+  on conflict (id) do nothing;
+-- no storage policies on host-docs: the browser can neither list nor read the documents
+
+-- park office accounts: Authentication → Users → Add user, then set its app_metadata to {"role":"office"}
+-- (or run: update auth.users set raw_app_meta_data = raw_app_meta_data || '{"role":"office"}' where email = '...';)
 
 -- ---------- SMS alarm (optional, needs a Twilio account) ----------
 -- 1) Deploy supabase/functions/overdue-alarm with the Supabase CLI and set its secrets:

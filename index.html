@@ -612,13 +612,16 @@ html.vt-open,html.vt-open body{overflow:hidden}
           <div><b>Offline trip pack</b><span>Ticket QR, programme, SOS numbers, a park plan with your GPS position and Kazakh phrases. Opens with no signal.</span></div>
           <div><b>Facilities map</b><span>Toilets, bins, water, first aid and where the signal is, with live status from other visitors.</span></div>
           <div><b>One-tap reports</b><span>"Bin is full", "No signal here". Saved on your phone and sent when the signal returns.</span></div>
+          <div><b>Facilities from local hosts</b><span>Guesthouses and cafés near the park open their toilets, showers, water and Wi-Fi. Buy a pass online; it works with no signal.</span></div>
+        </div>
+        <details class="pk-hmore"><summary>4 more features</summary>
+        <div class="pk-hfeat">
           <div><b>Park office panel</b><span>Rangers see hotspots, send staff, get a cleaning round and a map of signal gaps for mobile operators.</span></div>
           <div><b>Safety check-in</b><span>Say when you will be back. If you are late, your contact gets an SMS with your last point.</span></div>
           <div><b>Relay by QR</b><span>No signal? Pass your reports and last point to a traveler you meet; their phone sends them later.</span></div>
-          <div><b>Facilities from local hosts</b><span>Guesthouses and cafés near the park open their toilets, showers, water and Wi-Fi. Buy a pass online; it works with no signal.</span></div>
           <div><b>Host cabinet</b><span>Hosts set prices, open or close a facility, check passes offline and see their income.</span></div>
-        </div>
-        <div class="pk-hbtn"><button class="btn btn-gold" data-goview="parks">Open the park map</button><button class="btn btn-line" data-goview="office">Park office panel</button><button class="btn btn-line" data-goview="host">For hosts</button></div>
+        </div></details>
+        <div class="pk-hbtn"><button class="btn btn-gold" data-goview="parks">Open the park map</button><button class="btn btn-line" data-goview="office">Park office panel</button><button class="btn btn-line" data-goview="join">Register your place</button></div>
         <div id="hpPacks" class="pk-hpacks"></div>
       </div>
       <div class="pk-hstats" id="hpStats"></div>
@@ -669,6 +672,44 @@ html.vt-open,html.vt-open body{overflow:hidden}
     </div>
   </section>
 
+  <section class="block" id="model" aria-labelledby="bmTitle">
+    <div class="wrap">
+      <div class="section-head">
+        <div><div class="eyebrow">How the service pays for itself</div><h2 id="bmTitle">Free for travelers. Hosts and parks pay only for what they get.</h2></div>
+        <p class="muted">No cut from the guides, drivers and guesthouses you book: you pay them directly. The service earns where it brings new money: facility passes and the park office panel.</p>
+      </div>
+      <div class="bm-grid">
+        <div class="bm-card"><b class="bm-big num" translate="no">10%</b><h3>Of each facility pass</h3><p>A visitor pays 200 ₸ for a toilet at a guesthouse: the host gets 180 ₸, the service 20 ₸. A host pays nothing until the first sale.</p></div>
+        <div class="bm-card"><b class="bm-big num" translate="no">120 000 ₸</b><h3>Park office subscription, a month</h3><p>Hotspots, cleaning rounds, check-in alarms, owner applications and signal-gap maps for one park. Paid from the park's visitor fees.</p></div>
+        <div class="bm-card"><b class="bm-big num" translate="no">0 ₸</b><h3>For travelers</h3><p>Offline packs, the facilities map, reports and safety check-ins are free. Booking guides and guesthouses has no commission.</p></div>
+      </div>
+      <div class="bm-calc">
+        <div class="bm-in">
+          <h3>One park, one year</h3>
+          <p class="muted pk-small">Starting numbers are our assumptions, not park statistics. Move them to test the model.</p>
+          <label class="bm-row"><span>Visitors a year</span><input type="range" id="bmV" min="20000" max="500000" step="10000" value="150000"><output for="bmV" class="num" translate="no"></output></label>
+          <label class="bm-row"><span>Use the app</span><input type="range" id="bmU" min="2" max="40" step="1" value="10"><output for="bmU" class="num" translate="no"></output></label>
+          <label class="bm-row"><span>Passes per user</span><input type="range" id="bmP" min="0.5" max="4" step="0.1" value="1.5"><output for="bmP" class="num" translate="no"></output></label>
+          <label class="bm-row"><span>Average pass price</span><input type="range" id="bmA" min="150" max="1500" step="50" value="350"><output for="bmA" class="num" translate="no"></output></label>
+          <label class="bm-row"><span>Park subscription, a month</span><input type="range" id="bmS" min="0" max="300000" step="10000" value="120000"><output for="bmS" class="num" translate="no"></output></label>
+        </div>
+        <div class="bm-out" aria-live="polite">
+          <div class="bm-line"><span>Passes sold</span><b class="num" translate="no" id="bmPasses"></b></div>
+          <div class="bm-line good"><span>Local hosts earn</span><b class="num" translate="no" id="bmHosts"></b></div>
+          <div class="bm-line"><span>Service fee, 10%</span><b class="num" translate="no" id="bmFee"></b></div>
+          <div class="bm-line"><span>Park subscription, a year</span><b class="num" translate="no" id="bmSub"></b></div>
+          <div class="bm-line minus"><span>Server, SMS alarms, payment fees and host checks</span><b class="num" translate="no" id="bmCost"></b></div>
+          <div class="bm-line total"><span>Result for one park, a year</span><b class="num" translate="no" id="bmRes"></b></div>
+          <p class="src">Costs: server 15 000 ₸ a month; SMS alarm for 2% of check-ins, 60 ₸ per SMS; card and Kaspi fees 1% of pass sales; one visit to check each host, 8 000 ₸, about one host per 1 500 app users.</p>
+        </div>
+      </div>
+      <div class="bm-host">
+        <div><h3>Own a guesthouse, café or yurt camp near a park?</h3><p>Register, prove the place is yours with the eGov certificate, and after the park's check your toilet, shower, water or Wi-Fi appear on the visitors' map.</p></div>
+        <button class="btn btn-gold" data-goview="join">Register your place</button>
+      </div>
+    </div>
+  </section>
+
   <section class="block" id="reviews">
     <div class="wrap">
       <div class="section-head">
@@ -677,6 +718,7 @@ html.vt-open,html.vt-open body{overflow:hidden}
       </div>
       <div class="legend" id="revFilter"></div>
       <div class="reviews" id="reviewList"></div>
+      <div class="rev-more"><button class="btn btn-line" id="revMore" type="button" hidden><span>Show all reviews</span> <span class="num" translate="no"></span></button></div>
       <p class="src" style="margin-top:14px">Sample reviews written for this prototype; Samruk Travel is a fictional company. In the real product, reviews are pulled from Google and Tripadvisor.</p>
     </div>
   </section>
@@ -851,6 +893,7 @@ html.vt-open,html.vt-open body{overflow:hidden}
     <div class="pk-kpis" id="ofKpi"></div>
     <p class="src pk-note" id="ofSample" hidden>Sample reports are made up to show a busy week and are marked "Sample data"; live ones come from visitors' phones. The panel has no login in this prototype.</p>
     <div class="pk-ofgrid">
+      <section class="pk-card pk-wide" id="ofAppsCard"><h3>Owner applications</h3><p class="muted pk-small">Owners who want to offer facilities near this park. Check the IIN or BIN, the cadastral number and the right document, then approve, ask for more or reject.</p><div id="ofApps"></div></section>
       <section class="pk-card pk-wide"><h3>Facilities from local hosts</h3><p class="muted pk-small">Guesthouses and cafés next to the park that open their toilets, showers, water and Wi-Fi to day visitors. Check new places and mark them as checked.</p><div id="ofHosts"></div></section>
       <section class="pk-card pk-wide pk-ckcard"><h3>Safety check-ins</h3><p class="muted pk-small">Visitors who said when they will be back. If someone is late, the server texts their contact the last known point.</p><div id="ofCk"></div></section>
       <section class="pk-card pk-wide"><h3>Hotspots</h3><p class="muted pk-small">Circles grow with the number of open reports. Grey dashed circles are places with no signal.</p><div class="map pk-map" id="ofMap" role="region" aria-label="Map of reported problems"></div><div id="ofPlan" hidden></div></section>
@@ -868,6 +911,14 @@ html.vt-open,html.vt-open body{overflow:hidden}
   <div class="wrap">
     <button class="back" data-go="home">← Home</button>
     <div id="hostBox"></div>
+  </div>
+</div>
+
+<!-- HOST REGISTRATION: owners prove who they are and their right to the property -->
+<div id="view-join" hidden>
+  <div class="wrap">
+    <button class="back" data-go="home">← Home</button>
+    <div id="joinBox"></div>
   </div>
 </div>
 
@@ -1242,19 +1293,19 @@ const EN={};document.querySelectorAll('[data-i18n]').forEach(el=>EN[el.dataset.i
 function applyLang(){document.documentElement.lang=st.lang==='zh'?'zh-CN':st.lang;trTree(document.body);}
 
 /* ---------- views ---------- */
-function show(v){['home','search','tour','book','done','parks','office','pack','host'].forEach(x=>$('#view-'+x).hidden=x!==v);document.querySelectorAll('.nav [data-view]').forEach(b=>{if(b.dataset.view!==v)b.setAttribute('aria-current','false');});if(v!=='home'&&typeof markSection==='function')markSection('');window.scrollTo(0,0);if(v==='home'&&homeMap)setTimeout(()=>homeMap.invalidateSize(),60);}
+function show(v){['home','search','tour','book','done','parks','office','pack','host','join'].forEach(x=>$('#view-'+x).hidden=x!==v);document.querySelectorAll('.nav [data-view]').forEach(b=>{if(b.dataset.view!==v)b.setAttribute('aria-current','false');});if(v!=='home'&&typeof markSection==='function')markSection('');window.scrollTo(0,0);if(v==='home'&&homeMap)setTimeout(()=>homeMap.invalidateSize(),60);}
 /* ---------- browser history: the back / forward arrows move between pages and booking steps ---------- */
-const SECTIONS=['planner','tours','map360','trust','reviews','contact'];
-function stateUrl(x){if(x.view==='search')return '#search';if(x.view==='parks')return '#parks'+(x.park?'-'+x.park:'');if(x.view==='office')return '#office'+(x.park?'-'+x.park:'');if(x.view==='pack')return '#pack-'+x.tour;if(x.view==='host')return '#host'+(x.host?'-'+x.host:'');if(x.view==='tour')return '#tour-'+x.tour;if(x.view==='book')return `#book-${x.tour}-${x.step+1}`;if(x.view==='done')return '#booked';return x.section?'#'+x.section:location.pathname+location.search;}
+const SECTIONS=['planner','tours','map360','trust','model','reviews','contact'];
+function stateUrl(x){if(x.view==='search')return '#search';if(x.view==='parks')return '#parks'+(x.park?'-'+x.park:'');if(x.view==='office')return '#office'+(x.park?'-'+x.park:'');if(x.view==='pack')return '#pack-'+x.tour;if(x.view==='host')return '#host'+(x.host?'-'+x.host:'');if(x.view==='join')return '#join';if(x.view==='tour')return '#tour-'+x.tour;if(x.view==='book')return `#book-${x.tour}-${x.step+1}`;if(x.view==='done')return '#booked';return x.section?'#'+x.section:location.pathname+location.search;}
 function push(x){x.d=((history.state&&history.state.d)||0)+1;history.pushState(x,'',stateUrl(x));}
 function replace(x){x.d=(history.state&&history.state.d)||0;history.replaceState(x,'',stateUrl(x));}
-function parseHash(){const h=decodeURIComponent(location.hash.slice(1));if(h.startsWith('tour-'))return{view:'tour',tour:h.slice(5)};const m=h.match(/^book-(\w+)-(\d)$/);if(m)return{view:'book',tour:m[1],step:+m[2]-1};if(h==='booked')return{view:'done'};if(h==='search')return{view:'search'};const pm=h.match(/^(parks|office)(?:-(\w+))?$/);if(pm)return{view:pm[1],park:pm[2]};if(h.startsWith('pack-'))return{view:'pack',tour:h.slice(5)};if(h==='host'||h.startsWith('host-'))return{view:'host',host:h.slice(5)||undefined};if(SECTIONS.includes(h))return{view:'home',section:h};return{view:'home'};}
+function parseHash(){const h=decodeURIComponent(location.hash.slice(1));if(h.startsWith('tour-'))return{view:'tour',tour:h.slice(5)};const m=h.match(/^book-(\w+)-(\d)$/);if(m)return{view:'book',tour:m[1],step:+m[2]-1};if(h==='booked')return{view:'done'};if(h==='search')return{view:'search'};const pm=h.match(/^(parks|office)(?:-(\w+))?$/);if(pm)return{view:pm[1],park:pm[2]};if(h.startsWith('pack-'))return{view:'pack',tour:h.slice(5)};if(h==='host'||h.startsWith('host-'))return{view:'host',host:h.slice(5)||undefined};if(h==='join')return{view:'join'};if(SECTIONS.includes(h))return{view:'home',section:h};return{view:'home'};}
 function goSection(id,smooth){const el=document.getElementById(id);if(el)requestAnimationFrame(()=>el.scrollIntoView({behavior:smooth?'smooth':'auto',block:'start'}));}
 function goHome(){if($('#view-home').hidden){show('home');push({view:'home'});}else{window.scrollTo({top:0,behavior:'smooth'});replace({view:'home'});}}
 function apply(x){
   if(!x||x.view==='home'){show('home');if(x&&x.section)goSection(x.section,false);return;}
   if(x.view==='search'){openSearch(true);return;}
-  if(x.view==='parks'||x.view==='office'||x.view==='pack'||x.view==='host'){if(window.PK)PK.apply(x);else window.__pkInit=x;return;}
+  if(x.view==='parks'||x.view==='office'||x.view==='pack'||x.view==='host'||x.view==='join'){if(window.PK)PK.apply(x);else window.__pkInit=x;return;}
   if(x.view==='tour'){if(TOURS.some(t=>t.id===x.tour))openTour(x.tour,true);else show('home');return;}
   if(x.view==='book'){const t=TOURS.find(y=>y.id===x.tour);if(!t||st.booked){show('home');replace({view:'home'});return;}
     if(st.tour!==t){st.tour=t;st.date=null;}$('#bTitle').textContent='Book: '+t.name;st.step=st.date?Math.min(x.step,3):0;renderBooking();show('book');return;}
@@ -1324,12 +1375,24 @@ function renderReviews(){
    <div class="rhist" role="group" aria-label="Filter by rating"><small class="muted">Filter by rating</small>${cnt.map(([n,c])=>`<button class="rbar" data-stars="${n}" aria-pressed="${revStars===n}" ${c?'':'disabled'} aria-label="${n} stars: ${c} reviews"><span class="rlab">${n} ★</span><span class="rtrack"><span class="rfill" style="width:${c/max*100}%"></span></span><span class="num">${c}</span></button>`).join('')}
    <button class="rall" data-stars="0" aria-pressed="${revStars===0}">All ratings</button></div>`;
   $('#revFilter').innerHTML=[['all','All trips',REVIEWS.length],...TOURS.map(t=>[t.id,t.name,REVIEWS.filter(r=>r.tour===t.id).length])].map(([id,n,c])=>`<button data-rev="${id}" aria-pressed="${revTour===id}">${id==='all'?'':`<span class="dot" style="background:${COLORS[id]}"></span>`}${esc(n)} · ${c}</button>`).join('');
-  const list=inTour.filter(r=>!revStars||r.s===revStars);
+  const all=inTour.filter(r=>!revStars||r.s===revStars),list=revAll?all:all.slice(0,9);
   $('#reviewList').innerHTML=list.length?list.map(r=>{const t=TOURS.find(x=>x.id===r.tour);return `<div class="review"><header><b>${esc(r.who)}</b>${stars(r.s)}</header><p>${esc(r.t)}</p>${r.re?`<div class="rreply"><b>Reply from Samruk Travel</b><p>${esc(r.re)}</p></div>`:''}<span class="tour-tag"><span class="dot" style="background:${COLORS[r.tour]}"></span>${esc(t.name)} · sample review</span></div>`;}).join(''):'<p class="muted">No reviews with this rating for this trip yet.</p>';
+  const mb=$('#revMore');if(mb){mb.hidden=all.length<=list.length;mb.querySelector('.num').textContent=all.length;}
 }
-let revStars=0;
+/* business model calculator: one park, one year. The starting numbers are assumptions and say so on the page */
+function bmCalc(){const v=id=>+document.getElementById(id).value,tg=n=>Math.round(n).toLocaleString('ru-RU')+' ₸';
+  const V=v('bmV'),U=v('bmU')/100,P=v('bmP'),A=v('bmA'),S=v('bmS'),users=V*U,passes=users*P,gross=passes*A,fee=gross*.10,sub=S*12;
+  const cost=15000*12+users*.3*.02*2*60+gross*.01+Math.ceil(users/1500)*8000,res=fee+sub-cost;
+  const out=(id,t)=>{document.getElementById(id).textContent=t;};
+  out('bmPasses',Math.round(passes).toLocaleString('ru-RU'));out('bmHosts',tg(gross-fee));out('bmFee',tg(fee));out('bmSub',tg(sub));out('bmCost','− '+tg(cost));out('bmRes',(res<0?'− ':'')+tg(Math.abs(res)));
+  document.getElementById('bmRes').closest('.bm-line').classList.toggle('neg',res<0);
+  const o=(id,t)=>{const e=document.querySelector(`output[for="${id}"]`);if(e)e.textContent=t;};
+  o('bmV',V.toLocaleString('ru-RU'));o('bmU',Math.round(U*100)+'%');o('bmP',P.toFixed(1));o('bmA',tg(A));o('bmS',tg(S));}
+document.querySelector('.bm-in').addEventListener('input',bmCalc);bmCalc();
+let revStars=0,revAll=false;
+$('#revMore').onclick=()=>{revAll=true;renderReviews();};
 $('#ratingSum').onclick=e=>{const b=e.target.closest('[data-stars]');if(!b||b.disabled)return;const n=+b.dataset.stars;revStars=revStars===n?0:n;renderReviews();};
-$('#revFilter').onclick=e=>{const b=e.target.closest('[data-rev]');if(!b)return;revTour=b.dataset.rev;revStars=0;renderReviews();};
+$('#revFilter').onclick=e=>{const b=e.target.closest('[data-rev]');if(!b)return;revTour=b.dataset.rev;revStars=0;revAll=false;renderReviews();};
 
 /* ---------- planner ---------- */
 function plan(){

@@ -233,7 +233,7 @@ async function setStatus(ids,status){
 /* live updates: the office on the projector asks the server every few seconds; tabs of one browser hear each other at once */
 let chan=null;try{chan=new BroadcastChannel('samruk-parks');chan.onmessage=()=>rerender();}catch(e){}
 function bc(m){try{chan&&chan.postMessage(m);}catch(e){}}
-window.addEventListener('storage',e=>{if([SRV,OUT,SAMPLE,CKSRV,CK,HST,HMINE,PSRV,PMINE].includes(e.key))rerender();});
+window.addEventListener('storage',e=>{if([SRV,OUT,SAMPLE,CKSRV,CK,HST,HMINE,PSRV,PMINE,JAPPS].includes(e.key))rerender();});
 window.addEventListener('online',()=>{paintNet();setTimeout(sync,400);});
 window.addEventListener('offline',paintNet);
 const tick={k:''};
@@ -606,25 +606,29 @@ async function scanRelay(handler,title){
   const c=document.createElement('canvas'),g=c.getContext('2d',{willReadFrequently:true});let live=true,raf=0;
   scanStop=()=>{live=false;cancelAnimationFrame(raf);stream.getTracks().forEach(t=>t.stop());};
   const tick=()=>{if(!live)return;if(v.readyState>=2&&v.videoWidth){const k=Math.min(1,720/Math.max(v.videoWidth,v.videoHeight));c.width=Math.round(v.videoWidth*k);c.height=Math.round(v.videoHeight*k);g.drawImage(v,0,0,c.width,c.height);
-      const d=g.getImageData(0,0,c.width,c.height),r=jsQR(d.data,c.width,c.height,{inversionAttempts:'dontInvert'});if(r&&r.data&&scanHandler(r.data))return;}
-    raf=requestAnimationFrame(tick);};tick();
+      const d=g.getImageData(0,0,c.width,c.height),r=jsQR(d.data,c.width,c.height,{inversionAttempts:'dontInvert'});
+      if(r&&r.data&&r.data!==lastBad){const res=scanHandler(r.data);
+        if(res&&res.then){res.then(ok=>{if(ok)return;lastBad=r.data;if(live)raf=requestAnimationFrame(tick);});return;}
+        if(res)return;lastBad=r.data;}}
+    raf=requestAnimationFrame(tick);};let lastBad=null;tick();
 }
 async function scanFile(file){
   try{await loadJsQR();}catch(e){return;}
   const img=new Image(),url=URL.createObjectURL(file);await new Promise((r,j)=>{img.onload=r;img.onerror=j;img.src=url;}).catch(()=>{});
   const k=Math.min(1,1400/Math.max(img.width,img.height)),c=document.createElement('canvas');c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);
   const g=c.getContext('2d');g.drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);const r=jsQR(g.getImageData(0,0,c.width,c.height).data,c.width,c.height);
-  if(!r||!(scanHandler||relayGot)(r.data)){const m=$('#pkScanMsg');if(m)m.textContent=tx('No QR found in the photo. Try again closer.');}
+  if(!r||!await (scanHandler||relayGot)(r.data)){const m=$('#pkScanMsg');if(m)m.textContent=tx('No QR found in the photo. Try again closer.');}
 }
 
 /* ---------- OFFICE view: the park administration panel ---------- */
 const omap={m:null,g:null,park:null};
-function openOffice(pk,fromHistory){if(pk&&PARKS[pk])cur.office=pk;show('office');markNav('office');renderOffice();if(!fromHistory)push({view:'office',park:cur.office});}
+function openOffice(pk,fromHistory){if(pk&&PARKS[pk])cur.office=pk;if(API&&offSession())loadOfficeApps();show('office');markNav('office');renderOffice();if(!fromHistory)push({view:'office',park:cur.office});}
 function renderOffice(){
   const pk=cur.office,P=PARKS[pk],all=srv().filter(r=>r.park===pk),now=Date.now();
   $('#ofTabs').innerHTML=Object.keys(PARKS).map(k=>{const n=srv().filter(r=>r.park===k&&staffJob(r)&&r.status!=='done').length;return `<button class="chip" data-of="${k}" aria-pressed="${k===pk}">${esc(PARKS[k].short)} ${n?`<span class="pk-badge" translate="no">${n}</span>`:''}</button>`;}).join('');
   $('#ofName').textContent=P.name;$('#ofSample').hidden=false;
   const oh=$('#ofHosts');if(oh)oh.innerHTML=hostsOfficeCard(pk);
+  if(!API)offApps=load(JAPPS,[]);if(!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#ofApps')))paintOfficeApps();
   const open=all.filter(r=>staffJob(r)&&r.status!=='done');
   const wc=new Set(open.filter(r=>r.f&&facility(pk,r.f).t==='toilet').map(r=>r.f)).size,bins=new Set(open.filter(r=>r.kind==='full'||(r.f&&facility(pk,r.f).t==='bin'&&r.kind==='litter')).map(r=>r.f)).size;
   const ns=all.filter(r=>r.kind==='nosig'&&now-r.ts<7*24*H).length;
@@ -685,6 +689,7 @@ function csv(){const pk=cur.office,rows=[['park','lat','lng','kind','time']].con
 function rerender(){
   if($('#view-parks')&&!$('#view-parks').hidden)renderParks();
   if($('#view-office')&&!$('#view-office').hidden)renderOffice();
+  if($('#view-join')&&!$('#view-join').hidden&&!jcur.form)renderJoin();
   if($('#view-pack')&&!$('#view-pack').hidden&&cur.pack)renderPack(cur.pack);
   if($('#view-host')&&!$('#view-host').hidden&&!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#hostBox input,#hostBox select')))renderHost();
   if($('#view-tour')&&!$('#view-tour').hidden&&st.tour)onTour(st.tour);
@@ -730,14 +735,33 @@ function hosts(){
 const hostsOf=pk=>hosts().filter(h=>h.park===pk);
 const hostById=id=>hosts().find(h=>h.id===id);
 const kzt=n=>`${Math.round(n).toLocaleString('ru-RU')} ₸`;
-/* pass check: a short code from the pass fields. Demo only: a real version signs passes on the server with a secret key */
-function passSig(id,host,svc,price){let h=5381;for(const ch of `${id}|${host}|${svc}|${price}|samruk-demo`)h=((h*33)^ch.charCodeAt(0))>>>0;return h.toString(36).toUpperCase().padStart(6,'0').slice(0,6);}
-const passText=p=>`SRPASS1:${p.id}:${p.host}:${p.svc}:${p.price}:${p.sig}`;
-const passCode=p=>`${p.id.slice(-5).toUpperCase()}-${p.sig}`;
+/* Passes are signed with ECDSA P-256. With a server, the private key lives only in the pass-issue function and this
+   site holds the public key (config.js passPublicKey), so a host checks a pass with no signal and nobody can make one
+   in a browser. Without a server this browser plays the server and keeps a key pair of its own. */
+const b64u={enc:buf=>btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''),
+  dec:s=>{s=String(s).replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';return Uint8Array.from(atob(s),c=>c.charCodeAt(0));}};
+const EC={name:'ECDSA',namedCurve:'P-256'},ES={name:'ECDSA',hash:'SHA-256'};
+const passMsg=p=>new TextEncoder().encode(`SRPASS2|${p.id}|${p.host}|${p.svc}|${p.price}|${p.ts}`);
+async function demoKeys(){let k=load('sr_demo_passkey',null);if(!k){const kp=await crypto.subtle.generateKey(EC,true,['sign','verify']);
+  k={priv:await crypto.subtle.exportKey('jwk',kp.privateKey),pub:await crypto.subtle.exportKey('jwk',kp.publicKey)};save('sr_demo_passkey',k);}return k;}
+async function demoSign(p){const key=await crypto.subtle.importKey('jwk',(await demoKeys()).priv,EC,false,['sign']);return b64u.enc(await crypto.subtle.sign(ES,key,passMsg(p)));}
+let pubP=null;
+function passPubKey(){if(!pubP)pubP=(async()=>{const j=API?CFG.passPublicKey:(await demoKeys()).pub;if(!j)throw new Error('no public key');
+  return crypto.subtle.importKey('jwk',{kty:j.kty,crv:j.crv,x:j.x,y:j.y},EC,false,['verify']);})().catch(e=>{pubP=null;throw e;});return pubP;}
+async function passValid(p){if(!p||!p.sig)return false;try{return await crypto.subtle.verify(ES,await passPubKey(),b64u.dec(p.sig),passMsg(p));}catch(e){return false;}}
+const passText=p=>`SRPASS2:${p.id}:${p.host}:${p.svc}:${p.price}:${p.ts}:${p.sig}`;
+const passCode=p=>`${p.id.slice(-5).toUpperCase()}-${String(p.sig||'').slice(0,6).toUpperCase()}`;
+/* Edge Functions on the server: pass-issue, host-apply, office */
+async function fn(name,body,token){
+  const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),15000);
+  try{const r=await fetch(API+'/functions/v1/'+name,{method:'POST',signal:ctl.signal,headers:Object.assign({'Content-Type':'application/json',apikey:CFG.supabaseKey},token?{Authorization:'Bearer '+token}:/^eyJ/.test(CFG.supabaseKey)?{Authorization:'Bearer '+CFG.supabaseKey}:{}),body:JSON.stringify(body)});
+    const t=await r.text();let j=null;try{j=t?JSON.parse(t):null;}catch(e){}
+    if(!r.ok){const e=new Error((j&&(j.error||j.message))||(r.status+' '+t.slice(0,120)));e.status=r.status;e.data=j;throw e;}return j;}finally{clearTimeout(tm);}
+}
 function seedPasses(){
   if(load('sr_pass_seed',0)===1)return;let s=11;const rnd=()=>(s=(s*16807)%2147483647)/2147483647;const now=Date.now(),out=[];
   HOSTS0.forEach(h=>{const ks=Object.keys(h.s);for(let i=0;i<14+Math.floor(rnd()*22);i++){const svc=ks[Math.floor(rnd()*ks.length)],ts=Math.round(now-rnd()*7*24*H),id='q'+out.length+'x'+h.id.slice(2);
-    out.push({id,host:h.id,svc,price:h.s[svc],ts,sig:passSig(id,h.id,svc,h.s[svc]),status:rnd()<.85?'used':'paid',usedAt:ts+Math.round(rnd()*5*H),sample:1});}});
+    out.push({id,host:h.id,svc,price:h.s[svc],ts,sig:'',status:rnd()<.85?'used':'paid',usedAt:ts+Math.round(rnd()*5*H),sample:1});}});
   save(PSRV,out);save('sr_pass_seed',1);
 }
 /* all passes the office and the hosts know about */
@@ -747,9 +771,8 @@ async function pushPasses(){
   const q=load(PQ,[]);if(!q.length)return false;const done=[];
   for(const op of q){
     if(API){
-      if(op.op==='pass')await rest('passes?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=ignore-duplicates,return=minimal'},body:JSON.stringify([{id:op.p.id,host:op.p.host,svc:op.p.svc,price:op.p.price,ts:op.p.ts,sig:op.p.sig}])});
-      else if(op.op==='use')await rest(`passes?id=eq.${op.id}&status=eq.paid`,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({status:'used',used_at:op.at})});
-      else if(op.op==='host')await rest('hosts?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify([op.h])});
+      if(op.op==='use')await rest(`passes?id=eq.${op.id}&status=eq.paid`,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({status:'used',used_at:op.at})});
+      else if(op.op==='host')await rest(`hosts?id=eq.${encodeURIComponent(op.h.id)}`,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({hours:op.h.hours,svc:op.h.svc,updated_at:new Date().toISOString()})});
     }else{
       const s=load(PSRV,[]);
       if(op.op==='pass'&&!s.some(x=>x.id===op.p.id))s.push(Object.assign({},op.p));
@@ -765,11 +788,18 @@ async function pullHosts(){if(!API||!online())return false;
   const next=JSON.stringify([hs,ps]);if(next===pullHosts.sig)return false;pullHosts.sig=next;
   save(HCACHE,hs.map(r=>({id:r.id,park:r.park,name:r.name,village:r.village,lat:r.lat,lng:r.lng,hours:r.hours,phone:r.phone,svc:r.svc||{},verified:!!r.verified,rating:r.rating||null})));
   save(PCACHE,ps.map(r=>({id:r.id,host:r.host,svc:r.svc,price:+r.price,ts:+r.ts,sig:r.sig,status:r.status,usedAt:r.used_at?+r.used_at:null})));return true;}
-function buyPass(hid,svc){
-  const h=hostById(hid);if(!h||!h.svc[svc]||!h.svc[svc].open)return;
+let buying=false;
+async function buyPass(hid,svc){
+  const h=hostById(hid);if(!h||!h.svc[svc]||!h.svc[svc].open||buying)return;
   if(!online()){pkToast(N(LL('Buying needs signal. Buy passes before you go, or pay the host in cash.','购买需要信号。请出发前购买，或现场向接待方付现金。','Kaufen braucht Netz. Kaufen Sie Pässe vorher oder zahlen Sie bar beim Gastgeber.','Для покупки нужна связь. Купите пропуск заранее или заплатите хозяину наличными.','Сатып алу үшін байланыс керек. Рұқсатты алдын ала алыңыз немесе қожайынға қолма-қол төлеңіз.')));return;}
-  const id=rid('p'),price=h.svc[svc].p,p={id,host:hid,svc,price,ts:Date.now(),sig:passSig(id,hid,svc,price),status:'paid',park:h.park};
-  const m=load(PMINE,[]);m.unshift(p);save(PMINE,m.slice(0,40));pq({op:'pass',p});showPass(id);rerender();
+  buying=true;let p;
+  try{
+    if(API){const r=await fn('pass-issue',{host:hid,svc});p={id:r.id,host:r.host,svc:r.svc,price:+r.price,ts:+r.ts,sig:r.sig,status:'paid',park:h.park};}
+    else{p={id:rid('p'),host:hid,svc,price:h.svc[svc].p,ts:Date.now(),status:'paid',park:h.park};p.sig=await demoSign(p);}
+    if(!await passValid(p))throw new Error('signature');
+  }catch(e){buying=false;pkToast(N(LL('Could not issue the pass. Try again in a minute.','无法开具通行证，请稍后再试。','Der Pass konnte nicht ausgestellt werden. Versuchen Sie es gleich noch einmal.','Не удалось выпустить пропуск. Попробуйте через минуту.','Рұқсатты шығару мүмкін болмады. Бір минуттан кейін қайталаңыз.')));return;}
+  buying=false;
+  const m=load(PMINE,[]);m.unshift(p);save(PMINE,m.slice(0,40));if(!API)pq({op:'pass',p});showPass(p.id);rerender();
 }
 function myPasses(pk){return load(PMINE,[]).filter(p=>!pk||((hostById(p.host)||{}).park===pk));}
 function passState(p){const k=passes().find(x=>x.id===p.id);return k&&k.status==='used'?'used':p.status;}
@@ -811,13 +841,12 @@ function hostsOfficeCard(pk){
    <p class="muted pk-small"><span>Income for hosts, 7 days:</span> ${N(kzt(ps.reduce((s,p)=>s+p.price,0)))}</p>`;
 }
 /* ---------- HOST CABINET: what a guesthouse owner sees on their phone ---------- */
-const hcur={id:null,adding:false,pin:null};const hmap={m:null,g:null};
-function openHost(id,fromHistory){const hs=hosts();hcur.id=(id&&hs.some(h=>h.id===id))?id:(load(HME,null)||HOSTS0[1].id);hcur.adding=id==='new';
-  show('host');markNav('');renderHost();if(!fromHistory)push({view:'host',host:hcur.adding?'new':hcur.id});loadJsQR().catch(()=>{});}
+const hcur={id:null};
+function openHost(id,fromHistory){if(id==='new'){openJoin(fromHistory);return;}const hs=hosts();hcur.id=(id&&hs.some(h=>h.id===id))?id:(load(HME,null)||HOSTS0[1].id);
+  show('host');markNav('');renderHost();if(!fromHistory)push({view:'host',host:hcur.id});loadJsQR().catch(()=>{});}
 function renderHost(){
   const box=$('#hostBox');if(!box)return;
-  if(hcur.adding){renderHostAdd(box);return;}
-  const h=hostById(hcur.id);if(!h){hcur.adding=true;renderHostAdd(box);return;}
+  const h=hostById(hcur.id)||hostById(HOSTS0[1].id);
   save(HME,h.id);
   const now=Date.now(),ps=passes().filter(p=>p.host===h.id),d0=new Date();d0.setHours(0,0,0,0);
   const today=ps.filter(p=>p.ts>=d0.getTime()),week=ps.filter(p=>now-p.ts<7*24*H),used=ps.filter(p=>p.status==='used'&&p.usedAt>=d0.getTime());
@@ -825,7 +854,7 @@ function renderHost(){
   const bySvc={};week.forEach(p=>bySvc[p.svc]=(bySvc[p.svc]||0)+1);
   box.innerHTML=`
   <div class="pk-top"><div><div class="eyebrow">Host cabinet <span class="demo-tag">Demo</span></div><h1>${esc(h.name)}</h1><p class="muted"><span>${esc(h.village||'')}</span> · <span>${esc(PARKS[h.park].short)}</span> ${h.verified?'· <span class="pk-st pk-st-ok">Checked by the park</span>':'· <span class="pk-st pk-st-warn">New, not checked yet</span>'}</p></div>
-    <div class="pk-topr"><span class="pk-mode"></span><span class="pk-net"></span><label class="vh" for="hostPick">Your place</label><select id="hostPick" class="pk-select">${hosts().map(x=>`<option value="${x.id}" ${x.id===h.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select><button class="btn btn-line sm" data-hostnew>+ <span>Add your place</span></button></div></div>
+    <div class="pk-topr"><span class="pk-mode"></span><span class="pk-net"></span><label class="vh" for="hostPick">Your place</label><select id="hostPick" class="pk-select">${hosts().map(x=>`<option value="${x.id}" ${x.id===h.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select><button class="btn btn-line sm" data-hostnew>+ <span>Register a new place</span></button></div></div>
   <div class="pk-kpis">${[[today.length,'Passes sold today'],[kzt(today.reduce((s,p)=>s+p.price,0)),'Income today'],[kzt(week.reduce((s,p)=>s+p.price,0)),'Income, 7 days'],[used.length,'Checked in today'],[Object.values(h.svc).filter(v=>v.open).length+' / '+Object.keys(h.svc).length,'Facilities open now'],[h.rating||'–','Rating']].map(([n,l])=>`<div class="pk-kpi"><b class="num" translate="no">${n}</b><span>${esc(l)}</span></div>`).join('')}</div>
   <div class="pk-ofgrid pk-hgrid">
     <section class="pk-card pk-wide"><h3>Facilities and prices</h3><p class="muted pk-small">Visitors see these on the park map. Close a facility when it is busy or being cleaned.</p>
@@ -840,30 +869,8 @@ function renderHost(){
       <div class="pk-bars">${Object.entries(bySvc).sort((a,b)=>b[1]-a[1]).map(([k,n])=>`<div class="pk-bar"><span>${esc(SVC[k].l)}</span><i style="--w:${(n/Math.max(...Object.values(bySvc))*100).toFixed(0)}%" class="good"></i><b class="num" translate="no">${n}</b></div>`).join('')}</div></section>
     <section class="pk-card"><h3>Recent passes</h3><ul class="pk-rec">${ps.sort((a,b)=>b.ts-a.ts).slice(0,7).map(p=>`<li><span>${esc(SVC[p.svc].l)}</span> <span class="muted">· ${N(kzt(p.price))} · ${N(ago(p.ts))}</span> ${p.status==='used'?'<span class="pk-st pk-st-ok">Checked in</span>':'<span class="pk-st">Paid</span>'}${p.sample?' <span class="pk-tag demo">Sample data</span>':''}</li>`).join('')||'<li class="muted">No passes yet.</li>'}</ul></section>
   </div>
-  <p class="src pk-note">Prototype: hosts, prices and passes are sample data, and nothing is charged. The pass check here is a demo; a real version signs passes on the server, pays the host through Kaspi or a card, and the park checks every new place before it is marked "Checked by the park".</p>`;
+  <p class="src pk-note">Prototype: sample hosts and prices, and nothing is charged. Passes are signed on the server with a private key and checked here with the public key, so a pass cannot be faked even with no signal. A real version pays the host through Kaspi or a card, minus the 10% service fee.</p>`;
   paintNet();
-}
-function renderHostAdd(box){
-  const pk=hcur.pk||'kolsai';
-  box.innerHTML=`<div class="pk-top"><div><div class="eyebrow">Host cabinet <span class="demo-tag">Demo</span></div><h1>Add your place</h1><p class="muted">Guesthouse, café or shop near a park: open your toilet, shower, water or Wi-Fi to day visitors and earn from it.</p></div>
-    <div class="pk-topr">${hosts().length?'<button class="btn btn-line sm" data-hostback>← <span>Back to my cabinet</span></button>':''}</div></div>
-  <form class="pk-card pk-hostform" data-hostform>
-    <div class="grid2"><div class="field"><label for="hfName">Name of the place</label><input id="hfName" required maxlength="60" placeholder="For example: Altyn Saty guesthouse"></div>
-    <div class="field"><label for="hfPark">Park nearby</label><select id="hfPark">${Object.keys(PARKS).map(k=>`<option value="${k}" ${k===pk?'selected':''}>${esc(PARKS[k].short)}</option>`).join('')}</select></div>
-    <div class="field"><label for="hfVillage">Village or place</label><input id="hfVillage" maxlength="60"></div>
-    <div class="field"><label for="hfHours">Opening hours</label><input id="hfHours" maxlength="20" value="08:00–21:00"></div></div>
-    <fieldset class="pk-svcpick"><legend>What can visitors use?</legend>${Object.keys(SVC).map(k=>`<label><input type="checkbox" data-hfs="${k}" ${k==='toilet'?'checked':''}> ${ico(SVC_ICO[k],16)} <span>${esc(SVC[k].l)}</span> <input type="number" min="0" step="50" value="${SVC[k].p}" data-hfp="${k}" aria-label="${esc(tx('Price'))}"> ₸</label>`).join('')}</fieldset>
-    <div><b>Where is it?</b> <span class="muted pk-small">Tap the map, or use your GPS.</span> <button class="btn btn-line sm" type="button" data-hgps>Use my location</button></div>
-    <div class="map pk-map pk-hmap" id="hostMap" role="region" aria-label="${esc(tx('Map'))}"></div>
-    <p class="src" id="hfPin">${hcur.pin?`${hcur.pin.lat.toFixed(5)}, ${hcur.pin.lng.toFixed(5)}`:''}</p>
-    <button class="btn btn-gold" type="submit">Publish on the park map</button>
-    <p class="src">New places show "New, not checked yet" until the park office checks them.</p>
-  </form>`;
-  if(window.L){const P=PARKS[pk];if(hmap.m){hmap.m.remove();hmap.m=null;}
-    hmap.m=L.map('hostMap',{scrollWheelZoom:false}).setView(hcur.pin?[hcur.pin.lat,hcur.pin.lng]:P.c,13);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(hmap.m);
-    hmap.g=L.layerGroup().addTo(hmap.m);const pin=()=>{hmap.g.clearLayers();if(hcur.pin)L.marker([hcur.pin.lat,hcur.pin.lng],{icon:L.divIcon({className:'',html:`<span class="pk-mk pk-host">${ico('host',18)}</span>`,iconSize:[34,34],iconAnchor:[17,17]})}).addTo(hmap.g);const t=$('#hfPin');if(t)t.textContent=hcur.pin?`${hcur.pin.lat.toFixed(5)}, ${hcur.pin.lng.toFixed(5)}`:'';};
-    hmap.m.on('click',e=>{hcur.pin={lat:e.latlng.lat,lng:e.latlng.lng};pin();});pin();hmap.pinFn=pin;setTimeout(()=>hmap.m.invalidateSize(),80);}
 }
 function hostSave(h){
   const st=load(HST,{});st[h.id]=h.svc;save(HST,st);
@@ -871,23 +878,232 @@ function hostSave(h){
   if(!h.sample){const m=load(HMINE,[]).filter(x=>x.id!==h.id);m.push(Object.assign({},row,{verified:!!h.verified}));save(HMINE,m);}
   pq({op:'host',h:row});bc('change');
 }
-function checkPassText(text,quiet){
-  const h=hostById(hcur.id),out=$('#hostCheck');let m=/^SRPASS1:([a-z0-9]+):([a-z0-9-]+):(\w+):(\d+):([A-Z0-9]{6})$/.exec(String(text).trim()),p=null;
-  if(m)p={id:m[1],host:m[2],svc:m[3],price:+m[4],sig:m[5]};
-  else{const c=/^([A-Z0-9]{5})-([A-Z0-9]{6})$/i.exec(String(text).trim());if(c){const tail=c[1].toLowerCase(),sig=c[2].toUpperCase();
-    const known=passes().find(x=>x.id.slice(-5)===tail&&x.sig===sig&&x.host===h.id);if(known)p=Object.assign({},known);}}
+async function checkPassText(text,quiet){
+  const h=hostById(hcur.id),out=$('#hostCheck');let m=/^SRPASS2:([a-z0-9]+):([a-z0-9-]+):(\w+):(\d+):(\d+):([A-Za-z0-9_-]{40,120})$/.exec(String(text).trim()),p=null;
+  if(m)p={id:m[1],host:m[2],svc:m[3],price:+m[4],ts:+m[5],sig:m[6]};
+  else{/* the short code finds the pass in the list this phone last got from the server; its signature is then checked as usual */
+    const c=/^([A-Z0-9]{5})-([A-Z0-9_-]{6})$/i.exec(String(text).trim());if(c){const tail=c[1].toLowerCase(),sg=c[2].toUpperCase();
+    const known=passes().find(x=>x.id.slice(-5)===tail&&String(x.sig||'').slice(0,6).toUpperCase()===sg&&x.host===h.id);if(known)p=Object.assign({},known);}}
   const say=(ok,html)=>{if(out)out.innerHTML=`<div class="pk-check ${ok?'ok':'bad'}">${html}</div>`;pkToast(html);};
   if(!p){say(false,`✕ <span>Not a valid pass</span>`);return false;}
   if(p.host!==h.id){say(false,`✕ <span>This pass is for another place</span>`);return false;}
-  if(!SVC[p.svc]||passSig(p.id,p.host,p.svc,p.price)!==p.sig){say(false,`✕ <span>Not a valid pass</span>`);return false;}
+  if(!SVC[p.svc]||!await passValid(p)){say(false,`✕ <span>Not a valid pass</span> · <span>signature does not match</span>`);return false;}
   const k=passes().find(x=>x.id===p.id);
   if(k&&k.status==='used'){say(false,`✕ <span>Already used</span> ${N(hhmm(k.usedAt||k.ts))}`);return false;}
-  const at=Date.now(),s=load(PSRV,[]),x=s.find(y=>y.id===p.id);if(x)Object.assign(x,{status:'used',usedAt:at});else s.push(Object.assign({},p,{ts:at,status:'used',usedAt:at}));save(PSRV,s);
+  const at=Date.now(),s=load(PSRV,[]),x=s.find(y=>y.id===p.id);if(x)Object.assign(x,{status:'used',usedAt:at});else s.push(Object.assign({},p,{status:'used',usedAt:at}));save(PSRV,s);
   const mp=load(PMINE,[]),y=mp.find(z=>z.id===p.id);if(y){y.status='used';save(PMINE,mp);}
   pq({op:'use',id:p.id,at,p});
   say(true,`✓ <span>Valid pass</span>: <b>${esc(SVC[p.svc].l)}</b> · ${N(kzt(p.price))}`);
   setTimeout(()=>{if(!$('#view-host').hidden)renderHost();},quiet?0:1600);return true;
 }
+
+/* ---------- HOST REGISTRATION: an owner proves who they are and their right to the property ----------
+   The owner gives their IIN (person or sole proprietor) or BIN (company), the place, and their right to it:
+   the cadastral number, the eGov certificate of registered rights and a scan of the document. The form checks
+   what can be checked at once (IIN / BIN check digit, cadastral number format, distance to the park, the file);
+   the park office sees the application with the document and approves it, asks for more, or rejects it.
+   Only an approved place appears on the park map as "Checked by the park". With a server the documents go
+   to a private bucket that the browser cannot read (functions/host-apply); without one this browser plays the server. */
+const JAPPS='sr_join_apps',JMINE='sr_join_mine',OFTOK='sr_office_session';
+const jcur={form:false,pin:null,pk:null,doc:null,busy:false};const jmap={m:null,g:null};
+const OWNER_KIND={person:'Private person',ip:'Sole proprietor (IP)',too:'Company (TOO / LLP)'};
+const PLACE_TYPE={guesthouse:'Guesthouse',cafe:'Café',yurt:'Yurt camp',shop:'Shop'};
+const BASIS={own:'Owner',lease:'Lease',use:'Free use (family or the village)'};
+const JSTATUS={new:'Waiting for the park office',more:'More documents needed',approved:'Approved',rejected:'Rejected'};
+/* Kazakhstan IIN / BIN: 12 digits, the last one is a check digit (two weight rounds, mod 11) */
+function idCheck(v){v=String(v||'').replace(/\s/g,'');if(!/^\d{12}$/.test(v))return {ok:false,kind:null};
+  const d=[...v].map(Number);let s=d.slice(0,11).reduce((a,x,i)=>a+x*(i+1),0)%11;
+  if(s===10)s=d.slice(0,11).reduce((a,x,i)=>a+x*((i+2)%11+1),0)%11;
+  if(s===10||s!==d[11])return {ok:false,kind:null};
+  if([4,5,6].includes(d[4]))return {ok:true,kind:'bin'};
+  const mm=+v.slice(2,4),dd=+v.slice(4,6);return {ok:mm>=1&&mm<=12&&dd>=1&&dd<=31&&d[6]>=1&&d[6]<=6,kind:'iin'};}
+const CADASTRE=/^\d{2}:\d{3}:\d{3}:\d{1,5}(:\d{1,4}(\/\d{1,4})?)?$/;
+function seedApps(){
+  if(API||load('sr_join_seed',0)===1)return;const now=Date.now();
+  const scan=(t,n)=>'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="600" height="820" viewBox="0 0 600 820"><rect width="600" height="820" fill="#fbfaf6"/><rect x="24" y="24" width="552" height="772" fill="none" stroke="#9aa3ad" stroke-width="2"/><text x="300" y="96" text-anchor="middle" font-family="sans-serif" font-size="22" font-weight="700" fill="#1e2a36">${t}</text><text x="300" y="130" text-anchor="middle" font-family="sans-serif" font-size="15" fill="#4b5866">${n}</text>${[...Array(14)].map((_,i)=>`<rect x="64" y="${190+i*34}" width="${300+((i*97)%170)}" height="10" rx="5" fill="#d5dbe1"/>`).join('')}<circle cx="470" cy="700" r="58" fill="none" stroke="#3f6fb5" stroke-width="4"/><text x="470" y="706" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#3f6fb5">eGov</text><text x="300" y="770" text-anchor="middle" font-family="sans-serif" font-size="30" font-weight="700" fill="#c2453a" opacity=".55">SAMPLE · ОБРАЗЕЦ</text></svg>`);
+  save(JAPPS,[
+    {id:'asample1',sample:1,status:'new',ts:now-5*H,owner:{name:'Nurlan Abenov',phone:'+7 701 555 12 34',id:'850412300125',kind:'ip'},
+     place:{name:'Saty riverside guest yard',type:'guesthouse',park:'kolsai',village:'Saty village',hours:'08:00–22:00',lat:43.0532,lng:78.4101,svc:{toilet:{p:150,open:true},shower:{p:800,open:true},wifi:{p:400,open:true}}},
+     right:{basis:'own',cadastre:'03:047:105:318',certNo:'10100512345678',certDate:'2026-10-02'},doc:{name:'right-certificate.pdf',url:scan('Certificate of registered rights','to real estate · 03:047:105:318')},
+     checks:{id_valid:true,id_kind:'iin',cadastre_format:true,document:true,km_to_park:7.6,registry:'manual'}},
+    {id:'asample2',sample:1,status:'new',ts:now-26*H,owner:{name:'Aliya Serikova',phone:'+7 777 210 44 08',id:'900215400231',kind:'person'},
+     place:{name:'Canyon view café',type:'cafe',park:'charyn',village:'Charyn, top car park',hours:'09:00–20:00',lat:43.3561,lng:79.0745,svc:{toilet:{p:200,open:true},water:{p:300,open:true},meal:{p:2500,open:true}}},
+     right:{basis:'lease',cadastre:'03:052:018:77',certNo:'',certDate:''},doc:{name:'lease-agreement.jpg',url:scan('Lease agreement','land plot 03:052:018:77')},
+     checks:{id_valid:true,id_kind:'iin',cadastre_format:true,document:true,km_to_park:0.4,registry:'manual'}}
+  ]);save('sr_join_seed',1);
+}
+function openJoin(fromHistory){jcur.form=!load(JMINE,[]).length;show('join');markNav('');renderJoin();if(!fromHistory)push({view:'join'});if(API)refreshMine();}
+function myApps(){const all=load(JAPPS,[]);return load(JMINE,[]).map(m=>{const a=API?null:all.find(x=>x.id===m.id);return Object.assign({},m,a?{status:a.status,note:a.note,host_id:a.host_id}:{});});}
+async function refreshMine(){if(!API||!online())return;const mine=load(JMINE,[]);let ch=false;
+  for(const m of mine){try{const r=await fn('host-apply',{action:'status',id:m.id,token:m.token});if(r.status!==m.status||r.note!==m.note||r.host_id!==m.host_id){Object.assign(m,{status:r.status,note:r.note||null,host_id:r.host_id||null});ch=true;}}catch(e){}}
+  if(ch){save(JMINE,mine);if(!$('#view-join').hidden&&!jcur.form)renderJoin();}}
+function renderJoin(){
+  const box=$('#joinBox');if(!box)return;
+  const mine=myApps();
+  if(!jcur.form&&mine.length){box.innerHTML=`<div class="pk-top"><div><div class="eyebrow">For hosts</div><h1>Your applications</h1><p class="muted">The park office checks every place before visitors see it. You can close this page; the status stays on this phone.</p></div>
+    <div class="pk-topr"><button class="btn btn-line sm" data-jnew>+ <span>Register another place</span></button></div></div>
+    <div class="pk-japps">${mine.map(appStatusCard).join('')}</div>`;return;}
+  const pk=jcur.pk||'kolsai',svcRows=Object.keys(SVC).map(k=>`<label><input type="checkbox" data-jfs="${k}" ${k==='toilet'?'checked':''}> ${ico(SVC_ICO[k],16)} <span>${esc(SVC[k].l)}</span> <input type="number" min="0" step="50" value="${SVC[k].p}" data-jfp="${k}" aria-label="${esc(tx('Price'))}"> ₸</label>`).join('');
+  box.innerHTML=`<div class="pk-top"><div><div class="eyebrow">For hosts</div><h1>Register your place</h1><p class="muted">Guesthouse, café, yurt camp or shop near a national park: open your toilet, shower, water or Wi-Fi to day visitors and get paid for it. To keep visitors safe, the park checks who you are and that the place is yours.</p></div>
+    <div class="pk-topr">${mine.length?'<button class="btn btn-line sm" data-jlist>← <span>My applications</span></button>':''}</div></div>
+  <ol class="pk-jsteps" aria-label="${esc(tx('How it works'))}"><li><b>1</b><span>You fill in the form and attach the document</span></li><li><b>2</b><span>The site checks the numbers at once</span></li><li><b>3</b><span>The park office checks the document and the place</span></li><li><b>4</b><span>Your place appears on the park map as "Checked by the park"</span></li></ol>
+  <div class="pk-join">
+  <form class="pk-card pk-jform" data-joinform novalidate>
+    <fieldset><legend><b>1</b> <span>Who owns the place</span></legend>
+      <div class="grid2"><div class="field"><label for="jfName">Full name of the owner</label><input id="jfName" required maxlength="80" autocomplete="name"></div>
+      <div class="field"><label for="jfPhone">Phone</label><input id="jfPhone" required maxlength="20" inputmode="tel" autocomplete="tel" placeholder="+7 7__ ___ __ __"></div></div>
+      <div class="pk-radio" role="radiogroup" aria-label="${esc(tx('Owner'))}">${Object.entries(OWNER_KIND).map(([k,l],i)=>`<label><input type="radio" name="jkind" value="${k}" ${i===0?'checked':''}> <span>${esc(l)}</span></label>`).join('')}</div>
+      <div class="field"><label for="jfId" id="jfIdL">IIN</label><input id="jfId" required inputmode="numeric" maxlength="12" autocomplete="off" placeholder="12 digits"><small class="muted" id="jfIdHint">For a private person or a sole proprietor: your IIN. For a company: its BIN.</small></div>
+    </fieldset>
+    <fieldset><legend><b>2</b> <span>The place</span></legend>
+      <div class="grid2"><div class="field"><label for="jpName">Name of the place</label><input id="jpName" required maxlength="60" placeholder="For example: Altyn Saty guesthouse"></div>
+      <div class="field"><label for="jpType">Type</label><select id="jpType">${Object.entries(PLACE_TYPE).map(([k,l])=>`<option value="${k}">${esc(l)}</option>`).join('')}</select></div>
+      <div class="field"><label for="jpPark">Park nearby</label><select id="jpPark">${Object.keys(PARKS).map(k=>`<option value="${k}" ${k===pk?'selected':''}>${esc(PARKS[k].short)}</option>`).join('')}</select></div>
+      <div class="field"><label for="jpVillage">Village or place</label><input id="jpVillage" maxlength="60"></div>
+      <div class="field"><label for="jpHours">Opening hours</label><input id="jpHours" maxlength="20" value="08:00–21:00"></div></div>
+      <fieldset class="pk-svcpick"><legend>What can visitors use?</legend>${svcRows}</fieldset>
+      <div><b>Where is it?</b> <span class="muted pk-small">Tap the map, or use your GPS.</span> <button class="btn btn-line sm" type="button" data-jgps>Use my location</button></div>
+      <div class="map pk-map pk-hmap" id="joinMap" role="region" aria-label="${esc(tx('Map'))}"></div>
+      <p class="src" id="jpPin"></p>
+    </fieldset>
+    <fieldset><legend><b>3</b> <span>Your right to the property</span></legend>
+      <div class="pk-radio" role="radiogroup" aria-label="${esc(tx('Right to the property'))}">${Object.entries(BASIS).map(([k,l],i)=>`<label><input type="radio" name="jbasis" value="${k}" ${i===0?'checked':''}> <span>${esc(l)}</span></label>`).join('')}</div>
+      <div class="grid2"><div class="field"><label for="jrCad">Cadastral number of the land or building</label><input id="jrCad" required maxlength="30" inputmode="numeric" placeholder="03:047:105:318" autocomplete="off"></div>
+      <div class="field"><label for="jrCert">Certificate number (eGov)</label><input id="jrCert" maxlength="40" autocomplete="off"></div>
+      <div class="field"><label for="jrDate">Certificate date</label><input id="jrDate" type="date"></div></div>
+      <p class="muted pk-small" id="jrHint">Get the "Certificate of registered rights (encumbrances) to real estate" on egov.kz in a few minutes, free, with your EDS or a code by SMS. Attach it, or the title document.</p>
+      <label class="pk-file"><input type="file" id="jrDoc" accept="application/pdf,image/jpeg,image/png" class="vh"><span class="btn btn-line sm">Attach the document</span> <span class="muted pk-small" id="jrDocName">PDF, JPG or PNG, up to 4 MB</span></label>
+    </fieldset>
+    <fieldset><legend><b>4</b> <span>Consent</span></legend>
+      <label class="pk-check1"><input type="checkbox" id="jcTrue"> <span>The information is true, and the place is mine or I have the right to use it.</span></label>
+      <label class="pk-check1"><input type="checkbox" id="jcConsent"> <span>I agree that the park office processes my personal data to check this application (Law of the Republic of Kazakhstan "On personal data and their protection").</span></label>
+    </fieldset>
+    <button class="btn btn-gold" type="submit" id="jSubmit">Send for checking</button>
+    <p class="src">${API?'Documents go to a private storage that only the park office can open.':'Demo mode: the application and the document stay in this browser, and the park office panel in this browser plays the server.'}</p>
+  </form>
+  <aside class="pk-card pk-jaside"><h3>Checks</h3><ul class="pk-jchecks" id="joinChecks"></ul>
+    <p class="muted pk-small">The park office also checks the land registry (EGKN) by the cadastral number and the owner's name, and may visit the place. In this prototype that step is done by hand.</p></aside>
+  </div>`;
+  if(window.L){const P=PARKS[pk];if(jmap.m){jmap.m.remove();jmap.m=null;}
+    jmap.m=L.map('joinMap',{scrollWheelZoom:false}).setView(jcur.pin?[jcur.pin.lat,jcur.pin.lng]:P.c,12);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(jmap.m);
+    L.circle(P.c,{radius:50000,color:'#5A6B7B',weight:1,dashArray:'4 4',fill:false,interactive:false}).addTo(jmap.m);
+    jmap.g=L.layerGroup().addTo(jmap.m);jmap.m.on('click',e=>{jcur.pin={lat:e.latlng.lat,lng:e.latlng.lng};joinPin();joinChecks();});joinPin();setTimeout(()=>jmap.m.invalidateSize(),80);}
+  jcur.doc=null;joinKind();joinChecks();
+}
+function joinPin(){if(!jmap.g)return;jmap.g.clearLayers();if(jcur.pin)L.marker([jcur.pin.lat,jcur.pin.lng],{icon:L.divIcon({className:'',html:`<span class="pk-mk pk-host">${ico('host',18)}</span>`,iconSize:[34,34],iconAnchor:[17,17]})}).addTo(jmap.g);
+  const t=$('#jpPin');if(t)t.textContent=jcur.pin?`${jcur.pin.lat.toFixed(5)}, ${jcur.pin.lng.toFixed(5)}`:'';}
+function joinKind(){const k=(document.querySelector('[name=jkind]:checked')||{}).value,l=$('#jfIdL');if(l)l.textContent=tx(k==='too'?'BIN of the company':'IIN');
+  const b=(document.querySelector('[name=jbasis]:checked')||{}).value,h=$('#jrHint');
+  if(h)h.textContent=tx(b==='own'?'Get the "Certificate of registered rights (encumbrances) to real estate" on egov.kz in a few minutes, free, with your EDS or a code by SMS. Attach it, or the title document.'
+    :b==='lease'?'Attach the lease agreement for the land or building, with the owner\'s consent to receive visitors there, in one PDF.'
+    :'Attach a statement from the owner or the village akimat that you may use the place, with the owner\'s certificate of rights.');}
+function joinData(){
+  const v=id=>($(id)&&$(id).value||'').trim(),kind=(document.querySelector('[name=jkind]:checked')||{}).value,basis=(document.querySelector('[name=jbasis]:checked')||{}).value,pk=$('#jpPark')?$('#jpPark').value:'kolsai',svc={};
+  document.querySelectorAll('[data-jfs]').forEach(c=>{if(c.checked){const k=c.dataset.jfs;svc[k]={p:Math.max(0,Math.round(+document.querySelector(`[data-jfp="${k}"]`).value||0)),open:true};}});
+  return {owner:{name:v('#jfName'),phone:v('#jfPhone'),id:v('#jfId').replace(/\s/g,''),kind},
+    place:{name:v('#jpName'),type:v('#jpType'),park:pk,village:v('#jpVillage'),hours:v('#jpHours'),lat:jcur.pin?+jcur.pin.lat.toFixed(5):null,lng:jcur.pin?+jcur.pin.lng.toFixed(5):null,svc},
+    right:{basis,cadastre:v('#jrCad'),certNo:v('#jrCert'),certDate:v('#jrDate')},consent:!!($('#jcConsent')&&$('#jcConsent').checked),truth:!!($('#jcTrue')&&$('#jcTrue').checked)};
+}
+function joinEval(d){
+  const idc=idCheck(d.owner.id),P=PARKS[d.place.park],km=d.place.lat!=null&&P?dist(P.c[0],P.c[1],d.place.lat,d.place.lng)/1000:null;
+  const it=[
+    ['name',d.owner.name.length>=3?'ok':'wait','Owner\'s full name'],
+    ['phone',/^\+?[0-9 ()-]{6,20}$/.test(d.owner.phone)?'ok':d.owner.phone?'bad':'wait','Phone number'],
+    ['iin',idc.ok?'ok':d.owner.id.length===12?'bad':'wait',idc.ok?(idc.kind==='bin'?'BIN check digit is correct':'IIN check digit and birth date are correct'):'IIN / BIN check digit'],
+    ['kind',!idc.ok?'wait':((d.owner.kind==='too')===(idc.kind==='bin'))?'ok':'bad',d.owner.kind==='too'?'A company has a BIN, not an IIN':'A person or sole proprietor has an IIN, not a BIN'],
+    ['place',d.place.name.length>=2&&Object.keys(d.place.svc).length?'ok':'wait','Name of the place and at least one facility'],
+    ['distance',km==null?'wait':km<=50?'ok':'bad',km==null?'Place on the map':null,km],
+    ['cadastre',CADASTRE.test(d.right.cadastre)?'ok':d.right.cadastre?'bad':'wait','Cadastral number format, like 03:047:105:318'],
+    ['document',jcur.doc?'ok':'wait','Document attached'],
+    ['consent',d.consent&&d.truth?'ok':'wait','Both boxes in step 4']];
+  return {items:it,ok:it.every(x=>x[1]==='ok'),idc,km};
+}
+function joinChecks(){const box=$('#joinChecks');if(!box)return;const e=joinEval(joinData());
+  box.innerHTML=e.items.map(([k,s,l,km])=>`<li class="${s}"><i aria-hidden="true">${s==='ok'?'✓':s==='bad'?'✕':'•'}</i><span>${l?`<span>${esc(l)}</span>`:N(LL(`${km.toFixed(1)} km from the park${km>50?' (more than 50 km)':''}`,`距公园 ${km.toFixed(1)} 公里${km>50?'（超过50公里）':''}`,`${km.toFixed(1)} km vom Park${km>50?' (mehr als 50 km)':''}`,`${km.toFixed(1)} км от парка${km>50?' (больше 50 км)':''}`,`саябақтан ${km.toFixed(1)} км${km>50?' (50 км-ден артық)':''}`))}</span></li>`).join('')
+    +`<li class="wait manual"><i aria-hidden="true">⌛</i><span><span>Land registry and eGov check by the park office</span></span></li>`;}
+function readDoc(file){return new Promise((res,rej)=>{
+  if(!/^(application\/pdf|image\/jpeg|image\/png)$/.test(file.type))return rej(new Error('type'));
+  if(file.size>4.5e6)return rej(new Error('size'));
+  if(file.type==='application/pdf'||API){const r=new FileReader();r.onload=()=>res({name:file.name,type:file.type,size:file.size,url:r.result});r.onerror=rej;r.readAsDataURL(file);return;}
+  /* demo mode keeps a smaller copy of a photo in this browser */
+  const img=new Image(),u=URL.createObjectURL(file);img.onload=()=>{const k=Math.min(1,1400/Math.max(img.width,img.height)),c=document.createElement('canvas');c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);
+    c.getContext('2d').drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(u);res({name:file.name,type:'image/jpeg',size:file.size,url:c.toDataURL('image/jpeg',.75)});};img.onerror=rej;img.src=u;});}
+async function joinSubmit(){
+  if(jcur.busy)return;const d=joinData(),e=joinEval(d);
+  if(!e.ok){joinChecks();const first=e.items.find(x=>x[1]!=='ok');pkToast(N(LL('Check the marked items in the list.','请检查列表中标出的项目。','Prüfen Sie die markierten Punkte in der Liste.','Проверьте отмеченные пункты в списке.','Тізімдегі белгіленген тармақтарды тексеріңіз.')));
+    const map={name:'#jfName',phone:'#jfPhone',iin:'#jfId',kind:'#jfId',place:'#jpName',distance:'#joinMap',cadastre:'#jrCad',document:'#jrDoc',consent:'#jcTrue'};const el=$(map[first[0]]);if(el){(el.type==='file'?el.parentElement:el).scrollIntoView({behavior:'smooth',block:'center'});if(el.focus&&el.type!=='file')el.focus({preventScroll:true});}return;}
+  if(API&&!online()){pkToast(N(LL('Sending needs signal. Your form stays open.','发送需要信号，表格会保留。','Senden braucht Netz. Das Formular bleibt offen.','Для отправки нужна связь. Форма останется заполненной.','Жіберу үшін байланыс керек. Форма толтырылған күйде қалады.')));return;}
+  jcur.busy=true;const btn=$('#jSubmit');if(btn)btn.disabled=true;
+  const checks={id_valid:true,id_kind:e.idc.kind,cadastre_format:true,document:true,km_to_park:Math.round(e.km*10)/10,registry:'manual'};
+  try{
+    let rec;
+    if(API){const r=await fn('host-apply',{action:'submit',owner:d.owner,place:d.place,right:d.right,consent:true,doc:{name:jcur.doc.name,type:jcur.doc.type,data:jcur.doc.url.split(',')[1]}});
+      rec={id:r.id,token:r.token,name:d.place.name,park:d.place.park,status:'new',ts:Date.now()};}
+    else{const id=rid('a'),all=load(JAPPS,[]);all.unshift({id,status:'new',ts:Date.now(),owner:d.owner,place:d.place,right:d.right,doc:{name:jcur.doc.name,url:jcur.doc.url},checks});
+      if(!save(JAPPS,all)){all[0].doc={name:jcur.doc.name,url:null};save(JAPPS,all);}bc('change');
+      rec={id,token:'',name:d.place.name,park:d.place.park,status:'new',ts:Date.now()};}
+    const m=load(JMINE,[]);m.unshift(rec);save(JMINE,m.slice(0,10));jcur.form=false;jcur.pin=null;jcur.doc=null;renderJoin();window.scrollTo(0,0);
+    pkToast(`✓ ${N(LL('Sent. The park office will check it.','已发送，公园管理处会进行审核。','Gesendet. Die Parkverwaltung prüft es.','Отправлено. Администрация парка проверит заявку.','Жіберілді. Саябақ әкімшілігі өтінімді тексереді.'))}`);
+  }catch(x){const f=x.data&&x.data.fields;pkToast(N(f?LL(`The server did not accept: ${f.join(', ')}`,`服务器未接受：${f.join(', ')}`,`Der Server hat nicht angenommen: ${f.join(', ')}`,`Сервер не принял: ${f.join(', ')}`,`Сервер қабылдамады: ${f.join(', ')}`):LL('Could not send. Try again in a minute.','发送失败，请稍后再试。','Senden fehlgeschlagen. Versuchen Sie es gleich noch einmal.','Не удалось отправить. Попробуйте через минуту.','Жіберу мүмкін болмады. Бір минуттан кейін қайталаңыз.')));}
+  jcur.busy=false;if(btn)btn.disabled=false;
+}
+function appStatusCard(a){
+  const st=a.status||'new',step=st==='approved'?4:st==='new'?3:3,P=PARKS[a.park]||{short:''};
+  const li=(n,l)=>`<li class="${n<step||st==='approved'?'done':n===step?(st==='rejected'?'bad':st==='more'?'warn':'now'):''}"><i aria-hidden="true">${n<step||st==='approved'?'✓':n}</i><span>${esc(l)}</span></li>`;
+  return `<section class="pk-card pk-japp"><div class="pk-japph"><div><b>${esc(a.name)}</b><br><small class="muted"><span>${esc(P.short)}</span> · ${N(new Date(a.ts).toLocaleDateString(loc()))}</small></div><span class="pk-st ${st==='approved'?'pk-st-ok':st==='rejected'?'pk-st-bad':'pk-st-warn'}">${esc(JSTATUS[st])}</span></div>
+    <ol class="pk-jtl">${li(1,'Application sent')}${li(2,'Numbers and document checked by the site')}${li(3,'The park office checks the document and the place')}${li(4,'On the park map as "Checked by the park"')}</ol>
+    ${a.note?`<p class="pk-jnote"><b>Park office:</b> “${esc(a.note)}”</p>`:''}
+    <div class="pk-acts">${st==='approved'&&a.host_id?`<button class="btn btn-gold sm" data-hostopen="${esc(a.host_id)}">Open my host cabinet</button>`:''}${st==='more'||st==='rejected'?'<button class="btn btn-line sm" data-jnew>Send a new application</button>':''}<span class="muted pk-small" translate="no">${esc(a.id.toUpperCase())}</span></div></section>`;
+}
+
+/* ---------- park office: host applications, behind a login when there is a server ---------- */
+let offApps=null,offErr=null;
+const offSession=()=>{try{const s=JSON.parse(sessionStorage.getItem(OFTOK)||'null');return s&&s.exp>Date.now()?s:null;}catch(e){return null;}};
+async function officeLogin(email,password){
+  const r=await fetch(API+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:CFG.supabaseKey,'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+  const j=await r.json().catch(()=>({}));if(!r.ok||!j.access_token)throw new Error(j.error_description||j.msg||'login');
+  const role=(j.user&&j.user.app_metadata&&j.user.app_metadata.role)||'';if(role!=='office')throw new Error('role');
+  try{sessionStorage.setItem(OFTOK,JSON.stringify({token:j.access_token,email:j.user.email,exp:Date.now()+(j.expires_in||3600)*1000-60e3}));}catch(e){}
+}
+async function officeCall(body){const s=offSession();if(!s)throw Object.assign(new Error('login'),{status:401});
+  try{return await fn('office',body,s.token);}catch(e){if(e.status===401){try{sessionStorage.removeItem(OFTOK);}catch(x){}}throw e;}}
+async function loadOfficeApps(){if(!API){offApps=load(JAPPS,[]);return;}if(!offSession()){offApps=null;return;}
+  try{const rows=await officeCall({action:'apps'});offErr=null;
+    offApps=rows.map(a=>({id:a.id,status:a.status,ts:Date.parse(a.created_at),owner:{name:a.owner_name,phone:a.phone,id:a.iin,kind:a.owner_kind},place:a.place,right:{basis:a.basis,cadastre:a.cadastre,certNo:a.cert_no,certDate:a.cert_date},doc:{name:a.doc_name,url:a.doc_url},checks:a.checks||{},note:a.note,host_id:a.host_id,masked:1}));}
+  catch(e){offErr=String(e.message||e);offApps=null;}
+  if(!$('#view-office').hidden)paintOfficeApps();}
+function paintOfficeApps(){
+  const box=$('#ofApps');if(!box)return;const pk=cur.office;
+  if(API&&!offSession()){box.innerHTML=`<form class="pk-login" data-oflogin><p class="muted pk-small">Owners' applications and documents are open only to park staff. Sign in with the park office account.</p>
+    <div class="grid2"><div class="field"><label for="ofEmail">Email</label><input id="ofEmail" type="email" autocomplete="username" required></div><div class="field"><label for="ofPass">Password</label><input id="ofPass" type="password" autocomplete="current-password" required></div></div>
+    <button class="btn btn-gold sm" type="submit">Sign in</button>${offErr?`<p class="pk-jnote">${esc(offErr)}</p>`:''}</form>`;return;}
+  if(!offApps){box.innerHTML='<p class="muted">Loading…</p>';loadOfficeApps();return;}
+  const list=offApps.filter(a=>a.place&&a.place.park===pk).sort((a,b)=>(a.status==='new'?0:a.status==='more'?1:2)-(b.status==='new'?0:b.status==='more'?1:2)||b.ts-a.ts);
+  const s=offSession();
+  box.innerHTML=(s?`<p class="muted pk-small"><span>Signed in as</span> ${N(esc(s.email))} · <button class="pk-linkbtn" data-oflogout>Sign out</button></p>`:'')
+   +(list.length?`<ul class="pk-applist">${list.map(a=>{const c=a.checks||{},o=a.owner,p=a.place,r=a.right,idm=a.masked?o.id:o.id.slice(0,6)+'••••'+o.id.slice(-2),open=a.status==='new'||a.status==='more';
+    return `<li class="pk-appr ${a.status}"><div class="pk-apph"><div><b>${esc(p.name)}</b> <small class="muted"><span>${esc(PLACE_TYPE[p.type]||p.type||'')}</span> · <span>${esc(p.village||'')}</span></small><br>
+       <small><span>${esc(o.name)}</span> · <span>${esc(OWNER_KIND[o.kind]||o.kind)}</span> · ${N((c.id_kind==='bin'?'BIN ':'IIN ')+esc(idm))} · ${N(esc(o.phone))}</small></div>
+       <span class="pk-st ${a.status==='approved'?'pk-st-ok':a.status==='rejected'?'pk-st-bad':'pk-st-warn'}">${esc(JSTATUS[a.status]||a.status)}</span></div>
+     <dl class="pk-appdl"><div><dt>Right</dt><dd>${esc(BASIS[r.basis]||r.basis)}</dd></div><div><dt>Cadastral number</dt><dd translate="no">${esc(r.cadastre)}</dd></div>${r.certNo?`<div><dt>eGov certificate</dt><dd translate="no">${esc(r.certNo)}${r.certDate?' · '+esc(r.certDate):''}</dd></div>`:''}<div><dt>Facilities</dt><dd>${Object.keys(p.svc||{}).map(k=>`<span>${esc(SVC[k]?SVC[k].l:k)}</span>`).join(', ')}</dd></div></dl>
+     <div class="pk-ofk"><span class="pk-tag ${c.id_valid?'ok':''}">${c.id_valid?'✓':'✕'} <span>${c.id_kind==='bin'?'BIN valid':'IIN valid'}</span></span><span class="pk-tag ${c.cadastre_format?'ok':''}">✓ <span>Cadastral number format</span></span><span class="pk-tag ok">✓ ${N(LL(`${c.km_to_park} km from the park`,`距公园 ${c.km_to_park} 公里`,`${c.km_to_park} km vom Park`,`${c.km_to_park} км от парка`,`саябақтан ${c.km_to_park} км`))}</span><span class="pk-tag">⌛ <span>Land registry: check by hand</span></span>${a.sample?'<span class="pk-tag demo">Sample data</span>':''}</div>
+     <div class="pk-acts">${a.doc&&a.doc.url?`<button class="btn btn-line sm" data-jdoc="${esc(a.id)}">📄 <span>Open the document</span></button>`:'<span class="muted pk-small">No document stored</span>'}
+       ${open?`<input class="pk-select pk-jnotein" id="jn-${esc(a.id)}" maxlength="300" placeholder="Note to the owner" aria-label="${esc(tx('Note to the owner'))}"><button class="btn btn-gold sm" data-jdecide="${esc(a.id)}|approved">Approve and publish</button><button class="btn btn-line sm" data-jdecide="${esc(a.id)}|more">Ask for documents</button><button class="btn btn-line sm" data-jdecide="${esc(a.id)}|rejected">Reject</button>`:a.note?`<span class="muted pk-small">“${esc(a.note)}”</span>`:''}</div></li>`;}).join('')}</ul>`
+     :'<p class="muted">No applications for this park.</p>');
+}
+async function decideApp(id,decision,note){
+  if(API){await officeCall({action:'decide',id,decision,note});await loadOfficeApps();rerender();return;}
+  const all=load(JAPPS,[]),a=all.find(x=>x.id===id);if(!a)return;a.status=decision;a.note=note||null;
+  if(decision==='approved'&&!a.host_id){a.host_id='h-'+a.id.slice(1,13);const p=a.place;
+    const m=load(HMINE,[]).filter(x=>x.id!==a.host_id);m.push({id:a.host_id,park:p.park,name:p.name,village:p.village||null,lat:p.lat,lng:p.lng,hours:p.hours||null,svc:p.svc,verified:true});save(HMINE,m);}
+  save(JAPPS,all);offApps=all;bc('change');rerender();
+}
+function openDoc(id){const a=(offApps||[]).find(x=>x.id===id);if(!a||!a.doc||!a.doc.url)return;
+  if(/^https?:/.test(a.doc.url)){window.open(a.doc.url,'_blank','noopener');return;}
+  if(/^data:image\//.test(a.doc.url)){modal(`<h3>${esc(a.doc.name||'')}</h3><img class="pk-docimg" src="${a.doc.url}" alt="">`);return;}
+  try{const [h,b]=a.doc.url.split(','),bin=atob(b),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
+    window.open(URL.createObjectURL(new Blob([u],{type:h.slice(5).split(';')[0]})),'_blank','noopener');}catch(e){}}
 
 /* ---------- hooks into the rest of the site ---------- */
 function onTour(t){
@@ -907,6 +1123,7 @@ function apply(x){
   if(x.view==='parks')openParks(x.park,true);
   else if(x.view==='office')openOffice(x.park,true);
   else if(x.view==='host')openHost(x.host,true);
+  else if(x.view==='join')openJoin(true);
   else if(x.view==='pack'){if(tourOf(x.tour))openPack(x.tour,true);else{show('home');}}
 }
 
@@ -936,26 +1153,33 @@ document.addEventListener('click',async e=>{
   if(b=q('[data-buy]')){const [h,k]=b.dataset.buy.split('|');buyPass(h,k);return;}
   if(b=q('[data-showpass]')){showPass(b.dataset.showpass);return;}
   if(b=q('[data-hostsel]')){selectHost(b.dataset.hostsel);return;}
-  if(b=q('[data-hostnew]')){e.preventDefault();hcur.pk=cur.park;hcur.pin=null;openHost('new');return;}
-  if(q('[data-hostback]')){hcur.adding=false;openHost(load(HME,null));return;}
+  if(b=q('[data-hostnew]')||q('[data-join]')){e.preventDefault();jcur.pk=(b.closest('#view-parks')?cur.park:null)||jcur.pk;jcur.form=true;openJoin();return;}
+  if(q('[data-jnew]')){jcur.form=true;jcur.pin=null;renderJoin();window.scrollTo(0,0);return;}
+  if(q('[data-jlist]')){jcur.form=false;renderJoin();return;}
+  if(q('[data-jgps]')){locate(p2=>{if(p2&&jmap.m){jcur.pin={lat:p2.lat,lng:p2.lng};jmap.m.setView([p2.lat,p2.lng],14);joinPin();joinChecks();}});return;}
+  if(b=q('[data-hostopen]')){save(HME,b.dataset.hostopen);if(API){pullHosts.sig='';await sync();}openHost(b.dataset.hostopen);return;}
+  if(b=q('[data-jdoc]')){openDoc(b.dataset.jdoc);return;}
+  if(b=q('[data-jdecide]')){const [id,dec]=b.dataset.jdecide.split('|'),inp=document.getElementById('jn-'+id),note=inp?inp.value.trim():'';
+    if(dec!=='approved'&&!note){pkToast(N(LL('Write a note to the owner: what is missing or why.','请给业主写一条说明：缺少什么或原因。','Schreiben Sie dem Eigentümer, was fehlt oder warum.','Напишите владельцу, чего не хватает или почему.','Иесіне не жетіспейтінін немесе себебін жазыңыз.')));if(inp)inp.focus();return;}
+    b.disabled=true;try{await decideApp(id,dec,note);pkToast(`✓ ${N(dec==='approved'?LL('Approved. The place is on the park map as checked.','已批准，该地点已作为“已审核”显示在公园地图上。','Genehmigt. Der Ort steht als geprüft auf der Parkkarte.','Одобрено. Место на карте парка как проверенное.','Мақұлданды. Орын саябақ картасында тексерілген ретінде көрсетілді.'):LL('Sent to the owner.','已发送给业主。','An den Eigentümer gesendet.','Отправлено владельцу.','Иесіне жіберілді.'))}`);}
+    catch(x){b.disabled=false;pkToast(esc(String(x.message||x)));if(x.status===401)paintOfficeApps();}return;}
+  if(q('[data-oflogout]')){try{sessionStorage.removeItem(OFTOK);}catch(x){}offApps=null;paintOfficeApps();return;}
   if(b=q('[data-hopen]')){const h=hostById(hcur.id);const k=b.dataset.hopen;h.svc[k].open=!h.svc[k].open;hostSave(h);renderHost();return;}
   if(b=q('[data-hadd]')){const h=hostById(hcur.id);const k=b.dataset.hadd;h.svc[k]={p:SVC[k].p,open:true};hostSave(h);renderHost();return;}
-  if(q('[data-hscan]')){scanRelay(t=>{const ok=checkPassText(t);if(ok)closeModal();return ok;},'Scan the visitor\'s pass');return;}
-  if(q('[data-hgps]')){locate(p2=>{if(p2&&hmap.pinFn){hcur.pin={lat:p2.lat,lng:p2.lng};hmap.m.setView([p2.lat,p2.lng],15);hmap.pinFn();}});return;}
+  if(q('[data-hscan]')){scanRelay(async t=>{const ok=await checkPassText(t);if(ok)closeModal();return ok;},'Scan the visitor\'s pass');return;}
+  if((b=q('[data-hverify]'))&&API){if(!offSession()){pkToast(N(LL('Sign in as the park office first (the host applications card).','请先以公园管理处身份登录（在业主申请卡片中）。','Melden Sie sich zuerst als Parkverwaltung an (Karte mit den Anträgen).','Сначала войдите как администрация парка (карточка заявок хозяев).','Алдымен саябақ әкімшілігі ретінде кіріңіз (иелердің өтінімдері картасы).')));const f=$('#ofEmail');if(f){f.scrollIntoView({behavior:'smooth',block:'center'});f.focus({preventScroll:true});}return;}
+    b.disabled=true;try{await officeCall({action:'verifyHost',id:b.dataset.hverify});pullHosts.sig='';await sync();}catch(x){b.disabled=false;pkToast(esc(String(x.message||x)));}return;}
   if(b=q('[data-hverify]')){const h=hostById(b.dataset.hverify);if(h){h.verified=true;if(h.sample){}else{const m=load(HMINE,[]);const x=m.find(y=>y.id===h.id);if(x)x.verified=true;save(HMINE,m);}pq({op:'host',h:{id:h.id,park:h.park,name:h.name,village:h.village||null,lat:h.lat,lng:h.lng,hours:h.hours||null,svc:h.svc,verified:true}});rerender();}return;}
   if(b=q('[data-ck]')){if(b.dataset.ck==='back'){ckBack();pkToast(`✓ ${N(LL('Welcome back! The alarm is off.','欢迎回来！警报已取消。','Willkommen zurück! Der Alarm ist aus.','С возвращением! Тревога отключена.','Қош келдіңіз! Дабыл өшірілді.'))}`);}
     else{const ck=myCk();if(ck){ck.due+=H;save(CK,ck);ckQueue({op:'start',id:ck.id,name:ck.name,contact:ck.contact,park:ck.park,tour:ck.tour,due:ck.due,lat:null,lng:null,ts:null});sync();}}rerender();return;}
   if(q('.pk-sim')){toggleSim();return;}
-  if(b=q('[data-goview]')){const v=b.dataset.goview;if(v==='parks')openParks();else if(v==='office')openOffice();else if(v==='host')openHost();return;}
+  if(b=q('[data-goview]')){const v=b.dataset.goview;if(v==='parks')openParks();else if(v==='office')openOffice();else if(v==='host')openHost();else if(v==='join')openJoin();return;}
 });
 document.addEventListener('submit',e=>{
   if(e.target.closest('[data-hcode]')){e.preventDefault();checkPassText($('#hostCode').value,false);return;}
-  const hf=e.target.closest('[data-hostform]');if(hf){e.preventDefault();
-    const name=$('#hfName').value.trim(),svc={};hf.querySelectorAll('[data-hfs]').forEach(c=>{if(c.checked){const k=c.dataset.hfs;svc[k]={p:Math.max(0,+hf.querySelector(`[data-hfp="${k}"]`).value||0),open:true};}});
-    if(!name||!Object.keys(svc).length||!hcur.pin){pkToast(N(LL('Add a name, at least one facility and the place on the map.','请填写名称、至少一项设施，并在地图上标出位置。','Geben Sie einen Namen, mindestens eine Einrichtung und den Ort auf der Karte an.','Укажите название, хотя бы одно удобство и место на карте.','Атауын, кемінде бір ыңғайлылықты және картадағы орнын көрсетіңіз.')));return;}
-    const h={id:rid('h'),park:$('#hfPark').value,name,village:$('#hfVillage').value.trim(),hours:$('#hfHours').value.trim(),lat:+hcur.pin.lat.toFixed(5),lng:+hcur.pin.lng.toFixed(5),svc,verified:false};
-    hostSave(h);save(HME,h.id);hcur.adding=false;hcur.id=h.id;replace({view:'host',host:h.id});renderHost();
-    pkToast(`✓ ${N(LL('Published. Visitors see your place on the park map.','已发布，游客可以在公园地图上看到您的地点。','Veröffentlicht. Besucher sehen Ihren Ort auf der Parkkarte.','Опубликовано. Посетители видят ваше место на карте парка.','Жарияланды. Келушілер сіздің орныңызды саябақ картасынан көреді.'))}`);return;}
+  if(e.target.closest('[data-joinform]')){e.preventDefault();joinSubmit();return;}
+  if(e.target.closest('[data-oflogin]')){e.preventDefault();const bt=e.target.querySelector('button');bt.disabled=true;
+    officeLogin($('#ofEmail').value.trim(),$('#ofPass').value).then(()=>{offErr=null;offApps=null;paintOfficeApps();}).catch(x=>{offErr=tx(String(x.message)==='role'?'This account is not a park office account.':'Wrong email or password.');paintOfficeApps();});return;}
   const f=e.target.closest('[data-ckform]');if(!f)return;e.preventDefault();
   const name=$('#ckName').value.trim(),phone=$('#ckPhone').value.trim(),due=new Date($('#ckDue').value).getTime();
   if(!name||!/^\+?[0-9 ()-]{6,20}$/.test(phone)){pkToast(N(LL('Enter your name and a phone number for the SMS.','请填写姓名和接收短信的电话号码。','Geben Sie Ihren Namen und eine Telefonnummer für die SMS ein.','Введите имя и номер телефона для SMS.','Атыңызды және SMS үшін телефон нөмірін енгізіңіз.')));return;}
@@ -967,12 +1191,16 @@ document.addEventListener('submit',e=>{
 document.addEventListener('change',async e=>{
   if(e.target.id==='pkQrFile'&&e.target.files[0]){scanFile(e.target.files[0]);return;}
   if(e.target.id==='hostPick'){hcur.id=e.target.value;replace({view:'host',host:hcur.id});renderHost();return;}
-  if(e.target.id==='hfPark'){hcur.pk=e.target.value;if(hmap.m)hmap.m.setView(PARKS[hcur.pk].c,13);return;}
+  if(e.target.id==='jpPark'){jcur.pk=e.target.value;if(jmap.m){jmap.m.eachLayer(l=>{if(l instanceof L.Circle)jmap.m.removeLayer(l);});L.circle(PARKS[jcur.pk].c,{radius:50000,color:'#5A6B7B',weight:1,dashArray:'4 4',fill:false,interactive:false}).addTo(jmap.m);jmap.m.setView(PARKS[jcur.pk].c,11);}joinChecks();return;}
+  if(e.target.name==='jkind'||e.target.name==='jbasis'){joinKind();joinChecks();return;}
+  if(e.target.id==='jrDoc'){const f=e.target.files[0],nm=$('#jrDocName');jcur.doc=null;if(f){try{jcur.doc=await readDoc(f);if(nm)nm.textContent=`${f.name} · ${(f.size/1048576).toFixed(1)} MB`;}catch(x){if(nm)nm.textContent=tx(x.message==='size'?'The file is larger than 4 MB.':'Use a PDF, JPG or PNG file.');}}joinChecks();return;}
+  if(e.target.closest&&e.target.closest('[data-joinform]')){joinChecks();return;}
   if(e.target.dataset&&e.target.dataset.hprice){const h=hostById(hcur.id),k=e.target.dataset.hprice;h.svc[k].p=Math.max(0,Math.round(+e.target.value||0));hostSave(h);pkToast(`✓ ${N(LL('Price saved','价格已保存','Preis gespeichert','Цена сохранена','Баға сақталды'))}`);return;}
   if(e.target.id==='pkPhoto'&&e.target.files[0]){try{cur.photo=await readPhoto(e.target.files[0]);}catch(x){cur.photo=null;}const n=$('#pkNote')&&$('#pkNote').value;renderPanel();const d=$('#pkPanel details');if(d)d.open=true;if(n&&$('#pkNote'))$('#pkNote').value=n;}
   if(e.target.dataset&&e.target.dataset.lnt!==undefined&&cur.pack){const k='sr_lnt_'+cur.pack,v=load(k,[]);v[+e.target.dataset.lnt]=e.target.checked;save(k,v);}
 });
-$('#lang')&&$('#lang').addEventListener('change',()=>setTimeout(rerender,0));
+document.addEventListener('input',e=>{if(e.target.closest&&e.target.closest('[data-joinform]'))joinChecks();});
+$('#lang')&&$('#lang').addEventListener('change',()=>setTimeout(()=>{rerender();if($('#view-join')&&!$('#view-join').hidden)renderJoin();},0));
 
 
 /* service worker: makes the site and saved trips open with no signal */
@@ -980,8 +1208,8 @@ if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)){
   window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 }
 
-seed();seedPasses();
-window.PK={apply,onTour,onBooked,openParks,openOffice,openPack,openHost,PARKS,sync,_k:K};
+seed();seedPasses();seedApps();
+window.PK={apply,onTour,onBooked,openParks,openOffice,openPack,openHost,openJoin,PARKS,sync,_k:K,_idCheck:idCheck};
 paintHome();paintNet();sync();
 if(window.__pkInit){apply(window.__pkInit);window.__pkInit=null;}
 else if(st.tour&&!$('#view-tour').hidden)onTour(st.tour);
