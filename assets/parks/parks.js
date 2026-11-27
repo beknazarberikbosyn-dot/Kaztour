@@ -354,7 +354,7 @@ function parkSvg(pk,o={}){
   const fac=P.f.map(f=>{const s=fstat(pk,f.id,all).s;return `<g class="pk-svgf pk-${f.t} pk-st-${s}" transform="translate(${X(f.lng)} ${Y(f.lat)})"><circle r="22"/><g transform="translate(-14.4 -14.4) scale(1.2)">${ICO[f.t]}</g></g>`;}).join('');
   const placed=[];const lbl=P.f.filter(f=>f.t==='toilet'||f.t==='water'||f.t==='ranger').map(f=>{const x=+X(f.lng),y=+Y(f.lat)+42;
     if(placed.some(q=>Math.abs(q[0]-x)<230&&Math.abs(q[1]-y)<30))return ''; // skip a label that would sit on another one
-    placed.push([x,y]);return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" class="pk-svgl">${esc(f.n)}</text>`;}).join('');
+    placed.push([x,y]);return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" class="pk-svgl">${esc(tx(f.n))}</text>`;}).join('');
   const me=o.me?`<g transform="translate(${X(o.me.lng)} ${Y(o.me.lat)})"><circle r="${Math.max(10,+R(o.me.acc||30))}" fill="var(--sky)" fill-opacity=".15"/><circle r="9" fill="var(--sky)" stroke="#fff" stroke-width="3"/></g>`:'';
   const nArrow=`<g transform="translate(${W-46} 46)"><circle r="24" fill="var(--surface)" stroke="var(--line)"/><path d="M0-15 7 6 0 2-7 6z" fill="var(--ink)"/><text y="20" text-anchor="middle" font-size="11" font-weight="700" fill="var(--muted)">N</text></g>`;
   const sc=Math.pow(10,Math.floor(Math.log10((W/sx)*111320/3)));const scPx=sc/111320*sx;
