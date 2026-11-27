@@ -47,6 +47,8 @@ Deno.serve(async (req) => {
       const p = a.place;
       const { error: e2 } = await db.from("hosts").insert({
         id: host_id, park: p.park, name: p.name, village: p.village || null, lat: p.lat, lng: p.lng, hours: p.hours || null, svc: p.svc, verified: true,
+        // the owner's phone becomes the contact travelers see; the form told the owner so
+        direct: p.direct ? { ...p.direct, phone: a.phone } : { phone: a.phone, wa: 1, langs: ["ru"], offers: {} },
       });
       if (e2) return json({ error: e2.message }, 500);
     }

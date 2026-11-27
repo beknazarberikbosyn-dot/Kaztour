@@ -113,6 +113,9 @@ create table if not exists public.hosts (
   rating   numeric,
   updated_at timestamptz not null default now()
 );
+-- direct contact: {"type":"guesthouse","phone":"+7 …","wa":1,"tg":"username","langs":["kk","ru"],
+--                  "offers":{"room":{"p":15000},"guide":{"p":20000},"horse":{"p":5000},"transfer":{"p":45000,"note":"Almaty to Saty"},"meal":{"p":3000}}}
+alter table public.hosts add column if not exists direct jsonb not null default '{}'::jsonb;
 alter table public.hosts enable row level security;
 drop policy if exists "hosts readable" on public.hosts;
 drop policy if exists "hosts write" on public.hosts;
@@ -121,7 +124,7 @@ create policy "hosts readable" on public.hosts for select to anon, authenticated
 create policy "hosts update" on public.hosts for update to anon, authenticated using (true) with check (true);
 revoke insert, update on public.hosts from anon, authenticated;
 grant select on public.hosts to anon, authenticated;
-grant update (hours, svc, updated_at) on public.hosts to anon, authenticated;
+grant update (hours, svc, direct, updated_at) on public.hosts to anon, authenticated;
 -- New places come only through the host application (functions/host-apply) and the park office's approval
 -- (functions/office); only the office can set "verified". Demo limit: hosts have no login yet, so anyone
 -- may change a place's prices and opening. A real version gives each approved host an account.

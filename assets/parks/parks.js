@@ -420,7 +420,7 @@ function drawMap(){
   const all=srv().concat(outbox());
   P.f.forEach(f=>{if(!cur.layers[f.t])return;const s=fstat(cur.park,f.id,all).s;
     L.marker([f.lat,f.lng],{icon:mkIcon(f,s),title:tx(f.n),keyboard:true,riseOnHover:true}).addTo(pmap.g).on('click',()=>select(f.id));});
-  if(cur.layers.host)hostsOf(cur.park).forEach(h=>L.marker([h.lat,h.lng],{icon:L.divIcon({className:'',html:`<span class="pk-mk pk-host${cur.selHost===h.id?' sel':''}${h.verified?'':' new'}">${ico('host',18)}</span>`,iconSize:[34,34],iconAnchor:[17,17]}),title:tx(h.name),keyboard:true,riseOnHover:true}).addTo(pmap.g).on('click',()=>selectHost(h.id)));
+  if(cur.layers.host)hostsOf(cur.park).forEach(h=>L.marker([h.lat,h.lng],{icon:L.divIcon({className:'',html:`<span class="pk-mk pk-host${cur.selHost===h.id?' sel':''}${h.verified?'':' new'}">${ico(hostIco(h),18)}</span>`,iconSize:[34,34],iconAnchor:[17,17]}),title:tx(h.name),keyboard:true,riseOnHover:true}).addTo(pmap.g).on('click',()=>selectHost(h.id)));
   if(cur.mode==='spot'&&cur.spot)L.marker([cur.spot.lat,cur.spot.lng],{icon:L.divIcon({className:'',html:'<span class="pk-pin" aria-hidden="true"></span>',iconSize:[26,34],iconAnchor:[13,32]}),draggable:true}).addTo(pmap.g).on('dragend',e=>{const p=e.target.getLatLng();cur.spot={lat:p.lat,lng:p.lng};});
   if(me&&nearPark(cur.park))pmap.me.setLatLng([me.lat,me.lng]).addTo(pmap.m);
   setTimeout(()=>pmap.m.invalidateSize(),60);
@@ -444,6 +444,7 @@ function renderPanel(){
     box.innerHTML=`<div class="pk-ph"><span class="pk-mk pk-ranger">${ico('ranger',18)}</span><div><b>Tap an icon on the map</b><small class="muted">See if it works now and report a problem in one tap.</small></div></div>
      <ul class="pk-near">${near}${hostNearLines(cur.park,nearPark(cur.park)?me:null)}</ul><p class="src pk-from">${nearPark(cur.park)?'Distances from your GPS position.':'Distances from the entrance. Turn on location in the park to measure from where you are.'}</p>
      <div class="pk-acts"><button class="btn btn-gold sm" data-spot>${ico('spot',14)} <span>Report a spot: litter, no signal</span></button><button class="btn btn-line sm" data-gps>Use my location</button></div>
+     ${directNear(cur.park)}
      ${issues.length?`<h4 class="pk-h4">Problems visitors reported</h4><ul class="pk-issues">${issues.map(x=>`<li><button data-sel="${x.f.id}"><span class="pk-mk sm pk-${x.f.t} pk-st-${x.s.s}">${ico(x.f.t,14)}</span><span><b>${esc(x.f.n)}</b><br>${fstatLine(x.s)}</span></button></li>`).join('')}</ul>`:'<p class="muted">No open problems right now.</p>'}`;
     return;
   }
@@ -524,6 +525,7 @@ function renderPack(tid,soft){
       <p class="muted pk-small">A text message often gets through when calls and mobile data do not. GPS works without signal.</p>
       ${g?`<div class="pk-contact"><span class="ava" style="background:${g.c}">${esc(g.n[0])}</span><div><b>${esc(g.n)}</b><small>Your guide · WhatsApp +7 700 000 00 00 (sample)</small></div></div>`:''}
       ${P?`<div class="pk-contact"><span class="ava pk-rng">${ico('ranger',16)}</span><div><b>${esc(P.f.find(f=>f.t==='ranger').n)}</b><small>Park rangers · +7 700 000 00 01 (sample)</small></div></div>`:''}</section>
+    ${P?directPackCard(pk):''}
     ${relayCard()}
     ${P?passesCard(pk):''}
     ${P?`<section class="pk-card pk-wide"><div class="pk-planhead"><h3><span>Park plan:</span> <span>${esc(P.short)}</span></h3><a class="btn btn-line sm" href="#parks-${pk}" data-openpark="${pk}">Report a problem</a></div>
@@ -726,7 +728,7 @@ const HST='sr_hosts_state',HMINE='sr_hosts_mine',HCACHE='sr_hosts_cache',PMINE='
 /* every host with its current services: {svc:{p:price, open:bool}} */
 function hosts(){
   const st=load(HST,{}),srvRows=API?load(HCACHE,[]):[],byId={};
-  HOSTS0.forEach(h=>{byId[h.id]=Object.assign({sample:1,verified:1},h,{svc:Object.fromEntries(Object.entries(h.s).map(([k,p])=>[k,{p,open:true}]))});});
+  HOSTS0.concat(HOSTS_X).forEach(h=>{byId[h.id]=Object.assign({sample:1,verified:1},h,{svc:Object.fromEntries(Object.entries(h.s).map(([k,p])=>[k,{p,open:true}]))});});
   load(HMINE,[]).concat(srvRows).forEach(r=>{const b=byId[r.id]||{},clean=Object.fromEntries(Object.entries(r).filter(([k,v])=>v!==null&&v!==undefined));
     byId[r.id]=Object.assign({},b,clean,{svc:Object.assign({},b.svc||{},r.svc||{}),verified:!!(b.verified||r.verified)});});
   for(const id in st)if(byId[id])byId[id].svc=Object.assign({},byId[id].svc,st[id]);
@@ -786,7 +788,7 @@ async function pushPasses(){
 async function pullHosts(){if(!API||!online())return false;
   const [hs,ps]=await Promise.all([rest('hosts?select=*'),rest(`passes?select=*&ts=gte.${Date.now()-8*24*H}&order=ts.desc&limit=2000`)]);
   const next=JSON.stringify([hs,ps]);if(next===pullHosts.sig)return false;pullHosts.sig=next;
-  save(HCACHE,hs.map(r=>({id:r.id,park:r.park,name:r.name,village:r.village,lat:r.lat,lng:r.lng,hours:r.hours,phone:r.phone,svc:r.svc||{},verified:!!r.verified,rating:r.rating||null})));
+  save(HCACHE,hs.map(r=>({id:r.id,park:r.park,name:r.name,village:r.village,lat:r.lat,lng:r.lng,hours:r.hours,phone:r.phone,svc:r.svc||{},direct:r.direct||null,verified:!!r.verified,rating:r.rating||null})));
   save(PCACHE,ps.map(r=>({id:r.id,host:r.host,svc:r.svc,price:+r.price,ts:+r.ts,sig:r.sig,status:r.status,usedAt:r.used_at?+r.used_at:null})));return true;}
 let buying=false;
 async function buyPass(hid,svc){
@@ -813,12 +815,14 @@ function showPass(id){
 }
 function hostCard(h,from){
   const P=PARKS[h.park],o=from||{lat:P.f[0].lat,lng:P.f[0].lng},m=dist(o.lat,o.lng,h.lat,h.lng),mineP=myPasses().filter(p=>p.host===h.id&&passState(p)!=='used');
-  return `<div class="pk-ph"><span class="pk-mk pk-host">${ico('host',18)}</span><div><b>${esc(h.name)}</b><small class="muted"><span>${esc(h.village||'')}</span> · ${N(fmtDist(m)+' '+dirName(bearing(o.lat,o.lng,h.lat,h.lng)))}</small></div><button class="pk-x" data-close aria-label="${esc(tx('Close'))}">×</button></div>
+  const hasSvc=Object.keys(h.svc||{}).length>0;
+  return `<div class="pk-ph"><span class="pk-mk pk-host">${ico(hostIco(h),18)}</span><div><b>${esc(h.name)}</b><small class="muted"><span>${esc(h.village||'')}</span> · ${N(fmtDist(m)+' '+dirName(bearing(o.lat,o.lng,h.lat,h.lng)))}</small></div><button class="pk-x" data-close aria-label="${esc(tx('Close'))}">×</button></div>
    <p class="pk-now">${h.verified?'<span class="pk-st pk-st-ok">Checked by the park</span>':'<span class="pk-st pk-st-warn">New, not checked yet</span>'} ${h.rating?`<span class="stars" translate="no">★ ${h.rating}</span>`:''} <span class="muted">· ${N(esc(h.hours||''))}</span></p>
-   <h4 class="pk-h4">Facilities for visitors</h4>
+   ${directBlock(h)}
+   ${hasSvc?`<h4 class="pk-h4">Facilities for visitors</h4>
    <ul class="pk-svcs">${Object.entries(h.svc).map(([k,v])=>`<li class="${v.open?'':'off'}"><span class="pk-svci">${ico(SVC_ICO[k],16)}</span><span class="pk-svcn">${esc(SVC[k].l)}</span><b translate="no">${kzt(v.p)}</b>${v.open?`<button class="btn btn-gold sm" data-buy="${h.id}|${k}">Buy pass</button>`:'<span class="pk-st">Closed now</span>'}</li>`).join('')}</ul>
    ${mineP.length?`<div class="pk-acts">${mineP.map(p=>`<button class="btn btn-line sm" data-showpass="${p.id}">${ico(SVC_ICO[p.svc],14)} <span>Show my pass</span></button>`).join('')}</div>`:''}
-   <p class="src">Pay by card or Kaspi while you have signal (demo: nothing is charged), or pay the host in cash. Sample host for the prototype.</p>`;
+   <p class="src">Pay by card or Kaspi while you have signal (demo: nothing is charged), or pay the host in cash. Sample host for the prototype.</p>`:''}`;
 }
 function passesCard(pk,compact){
   const ps=myPasses(pk);if(!ps.length)return '';
@@ -840,6 +844,232 @@ function hostsOfficeCard(pk){
      ${h.verified?'<span class="pk-st pk-st-ok">Checked by the park</span>':`<button class="btn btn-gold sm" data-hverify="${h.id}">Mark as checked</button>`}</li>`).join('')}</ul>
    <p class="muted pk-small"><span>Income for hosts, 7 days:</span> ${N(kzt(ps.reduce((s,p)=>s+p.price,0)))}</p>`;
 }
+/* ---------- DIRECT CONTACT WITH LOCAL HOSTS ----------
+   A traveler writes to or calls a guesthouse, a guide, a horse rental or a driver near the park: no agency in between
+   and no commission. The request is put together here in the host's language (Russian or Kazakh), whatever language
+   the traveler reads the site in, and sent from the traveler's own WhatsApp, Telegram or SMS. Contacts are saved with
+   the offline pack. Sample hosts have sample numbers (+7 700 000 …), so their buttons only show a demo note. */
+const OFFER={room:{l:'Room for the night',u:'per night',ico:'bed',p:12000},guide:{l:'Guide for the trail',u:'per day',ico:'guide',p:20000},
+  horse:{l:'Horse with a handler',u:'per hour',ico:'horse',p:5000},transfer:{l:'Transfer by car',u:'per car',ico:'car',p:40000},meal:{l:'Home-cooked meal',u:'per person',ico:'meal',p:2500}};
+const HTYPE={guesthouse:'Guesthouse',yurt:'Yurt camp',cafe:'Café',shop:'Shop',guide:'Mountain guide',horses:'Horse rental',driver:'Driver'};
+const LANGN={kk:'Қазақша',ru:'Русский',en:'English',zh:'中文',de:'Deutsch'};
+/* strings of this feature for the page translator: "English": [中文, Deutsch, Русский, Қазақша] */
+const HD_I18N={
+ "Direct from the host":["直接联系接待方","Direkt beim Gastgeber","Напрямую у хозяина","Тікелей қожайыннан"],
+ "Speaks:":["会说：","Spricht:","Говорит на:","Сөйлейтін тілдері:"],
+ "Write to the host":["给接待方写信","Dem Gastgeber schreiben","Написать хозяину","Қожайынға жазу"],
+ "Call":["打电话","Anrufen","Позвонить","Қоңырау шалу"],
+ "No agency and no commission: you agree on everything and pay the host directly.":["没有中介，也没有佣金：您直接与接待方商量并付款。","Keine Agentur und keine Provision: Sie sprechen alles direkt mit dem Gastgeber ab und bezahlen ihn direkt.","Без агентства и комиссии: вы договариваетесь и платите хозяину напрямую.","Агенттік те, комиссия да жоқ: қожайынмен тікелей келісіп, тікелей төлейсіз."],
+ "Sample contact for the prototype.":["原型中的示例联系方式。","Beispielkontakt im Prototyp.","Контакт-пример для прототипа.","Прототиптегі үлгі байланыс."],
+ "Stay, guides and rentals nearby":["附近的住宿、向导和租赁","Unterkünfte, Guides und Verleih in der Nähe","Жильё, гиды и прокат рядом","Жақын маңдағы баспана, гидтер және жалға беру"],
+ "Direct contact, no commission.":["直接联系，无佣金。","Direkter Kontakt, keine Provision.","Напрямую, без комиссии.","Тікелей байланыс, комиссиясыз."],
+ "Local hosts: direct contacts":["当地接待方：直接联系方式","Gastgeber vor Ort: direkte Kontakte","Местные хозяева: прямые контакты","Жергілікті қожайындар: тікелей байланыс"],
+ "Write":["写信","Schreiben","Написать","Жазу"],
+ "Saved with this page. A call or SMS needs mobile signal, but not internet.":["已随本页保存。打电话或发短信需要手机信号，但不需要网络。","Mit dieser Seite gespeichert. Anruf oder SMS brauchen Mobilfunknetz, aber kein Internet.","Сохранено вместе с этой страницей. Для звонка или SMS нужна сотовая связь, интернет не нужен.","Осы бетпен бірге сақталды. Қоңырау немесе SMS үшін ұялы байланыс керек, интернет керек емес."],
+ "Sample numbers for the prototype.":["原型中的示例号码。","Beispielnummern im Prototyp.","Номера-примеры для прототипа.","Прототиптегі үлгі нөмірлер."],
+ "What do you need?":["您需要什么？","Was brauchen Sie?","Что вам нужно?","Сізге не керек?"],
+ "From":["从","Von","С","Басталуы"],
+ "To (optional)":["到（可选）","Bis (optional)","По (необязательно)","Аяқталуы (міндетті емес)"],
+ "People":["人数","Personen","Человек","Адам саны"],
+ "Your name":["您的名字","Ihr Name","Ваше имя","Атыңыз"],
+ "Anything else (optional, any language)":["其他要求（可选，任何语言）","Sonst noch etwas (optional, in jeder Sprache)","Что-то ещё (необязательно, на любом языке)","Тағы не керек (міндетті емес, кез келген тілде)"],
+ "Copy the text":["复制文字","Text kopieren","Скопировать текст","Мәтінді көшіру"],
+ "The message opens in your own WhatsApp, Telegram or SMS app. Samruk Travel does not see it and takes no commission.":["消息会在您自己的 WhatsApp、Telegram 或短信应用中打开。Samruk Travel 看不到内容，也不收佣金。","Die Nachricht öffnet sich in Ihrer eigenen WhatsApp-, Telegram- oder SMS-App. Samruk Travel sieht sie nicht und nimmt keine Provision.","Сообщение откроется в вашем WhatsApp, Telegram или SMS. Samruk Travel его не видит и не берёт комиссию.","Хабарлама өзіңіздің WhatsApp, Telegram немесе SMS қолданбаңызда ашылады. Samruk Travel оны көрмейді және комиссия алмайды."],
+ "Direct requests from travelers":["游客的直接询问","Direkte Anfragen von Reisenden","Прямые обращения туристов","Туристердің тікелей өтініштері"],
+ "Travelers write or call you directly, in Russian or Kazakh, even if they read the site in another language. No commission.":["游客会用俄语或哈萨克语直接给您写信或打电话，即使他们用其他语言浏览网站。无佣金。","Reisende schreiben oder rufen Sie direkt an, auf Russisch oder Kasachisch, auch wenn sie die Seite in einer anderen Sprache lesen. Keine Provision.","Туристы пишут или звонят вам напрямую, на русском или казахском, даже если читают сайт на другом языке. Без комиссии.","Туристер сайтты басқа тілде оқыса да, сізге орысша немесе қазақша тікелей жазады не қоңырау шалады. Комиссиясыз."],
+ "Phone":["电话","Telefon","Телефон","Телефон"],
+ "Telegram username (optional)":["Telegram 用户名（可选）","Telegram-Benutzername (optional)","Имя в Telegram (необязательно)","Telegram пайдаланушы аты (міндетті емес)"],
+ "You are":["您是","Sie sind","Вы","Сіз"],
+ "This phone has WhatsApp":["这个号码有 WhatsApp","Diese Nummer hat WhatsApp","На этом номере есть WhatsApp","Бұл нөмірде WhatsApp бар"],
+ "Languages you speak":["您会说的语言","Sprachen, die Sie sprechen","Языки, на которых вы говорите","Сөйлейтін тілдеріңіз"],
+ "What you offer":["您提供的服务","Was Sie anbieten","Что вы предлагаете","Не ұсынасыз"],
+ "Save contacts and offers":["保存联系方式和服务","Kontakte und Angebote speichern","Сохранить контакты и услуги","Байланыс пен қызметтерді сақтау"],
+ "Direct requests from travelers (optional)":["游客的直接询问（可选）","Direkte Anfragen von Reisenden (optional)","Прямые обращения туристов (необязательно)","Туристердің тікелей өтініштері (міндетті емес)"],
+ "Rooms, a guide, horses or a transfer: travelers write to you directly, in Russian or Kazakh, and see your phone number. No commission.":["客房、向导、马匹或接送：游客会用俄语或哈萨克语直接联系您，并能看到您的电话号码。无佣金。","Zimmer, ein Guide, Pferde oder ein Transfer: Reisende schreiben Ihnen direkt auf Russisch oder Kasachisch und sehen Ihre Telefonnummer. Keine Provision.","Комнаты, гид, лошади или трансфер: туристы пишут вам напрямую, на русском или казахском, и видят ваш номер телефона. Без комиссии.","Бөлме, гид, ат немесе трансфер: туристер сізге орысша не қазақша тікелей жазады және телефон нөміріңізді көреді. Комиссиясыз."],
+ "My phone has WhatsApp":["我的号码有 WhatsApp","Meine Nummer hat WhatsApp","На моём номере есть WhatsApp","Менің нөмірімде WhatsApp бар"],
+ "Name of the place and at least one facility or service":["地点名称以及至少一项设施或服务","Name des Ortes und mindestens eine Einrichtung oder ein Angebot","Название места и хотя бы одно удобство или услуга","Орынның атауы және кемінде бір жайлылық не қызмет"],
+ "Room for the night":["过夜客房","Zimmer für die Nacht","Комната на ночь","Түнеуге бөлме"],
+ "Guide for the trail":["步道向导","Guide für den Weg","Гид по тропе","Соқпақ бойынша гид"],
+ "Horse with a handler":["带马夫的马","Pferd mit Begleiter","Лошадь с сопровождающим","Жетекшісі бар ат"],
+ "Transfer by car":["汽车接送","Transfer mit dem Auto","Трансфер на машине","Көлікпен трансфер"],
+ "Home-cooked meal":["家常饭菜","Hausgemachtes Essen","Домашняя еда","Үй тамағы"],
+ "per night":["每晚","pro Nacht","за ночь","бір түнге"],
+ "per day":["每天","pro Tag","за день","бір күнге"],
+ "per hour":["每小时","pro Stunde","за час","бір сағатқа"],
+ "per car":["每车","pro Auto","за машину","бір көлікке"],
+ "per person":["每人","pro Person","на человека","бір адамға"],
+ "Guesthouse":["民宿","Gästehaus","Гостевой дом","Қонақ үй"],
+ "Yurt camp":["蒙古包营地","Jurtencamp","Юрточный лагерь","Киіз үй лагері"],
+ "Café":["咖啡馆","Café","Кафе","Кафе"],
+ "Shop":["商店","Laden","Магазин","Дүкен"],
+ "Mountain guide":["山地向导","Bergführer","Горный гид","Тау гиді"],
+ "Horse rental":["骑马租赁","Pferdeverleih","Прокат лошадей","Ат жалға беру"],
+ "Driver":["司机","Fahrer","Водитель","Жүргізуші"],
+ "Yerlan, mountain guide":["叶尔兰，山地向导","Yerlan, Bergführer","Ерлан, горный гид","Ерлан, тау гиді"],
+ "Saty horse rental":["萨特村骑马租赁","Pferdeverleih in Saty","Прокат лошадей в Саты","Сатыдағы ат жалға беру"],
+ "Daniyar, driver Almaty to Saty":["达尼亚尔，阿拉木图至萨特村的司机","Daniyar, Fahrer Almaty–Saty","Данияр, водитель Алматы – Саты","Данияр, Алматы – Саты жүргізушісі"],
+ "Almaty to Saty":["阿拉木图至萨特村","Almaty–Saty","Алматы – Саты","Алматы – Саты"],
+ "Almaty to Charyn":["阿拉木图至恰伦","Almaty–Scharyn","Алматы – Чарын","Алматы – Шарын"],
+ "Astana to Burabay":["阿斯塔纳至布拉拜","Astana–Burabay","Астана – Бурабай","Астана – Бурабай"]
+};
+for(const k in HD_I18N){const e=I18N[k]||(I18N[k]=[]);HD_I18N[k].forEach((v,i)=>{if(v&&!e[i])e[i]=v;});}
+Object.assign(ICO,{
+ bed:'<path d="M3 6v13M3 14h18v5M21 14v-2.5A3.5 3.5 0 0 0 17.5 8H11v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7" cy="11" r="2" fill="currentColor"/>',
+ guide:'<circle cx="11" cy="4.5" r="2.2" fill="currentColor"/><path d="M11 8v6l-3 7M11 14l3 7M7.5 11.5 11 8.5l3.5 2.5M18 7v14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+ horse:'<path d="M5 20v-6.5C5 10 7.5 8 11 8h3l2.5-3.5L18 7l2 1.5-1.5 2.5h-2v3.5L18 20M9 20v-5M14.5 20v-5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+ car:'<path d="M4 16.5V12l2-5h12l2 5v4.5M3 12h18M6 16.5h12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7.5" cy="17.5" r="1.8" fill="currentColor"/><circle cx="16.5" cy="17.5" r="1.8" fill="currentColor"/>',
+ hdchat:'<path d="M4 5h16v11H9l-5 4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
+ hdphone:'<path d="M6.5 3h3l1.5 4.5-2 1.5a11 11 0 0 0 6 6l1.5-2 4.5 1.5v3a2 2 0 0 1-2 2A17 17 0 0 1 4.5 5a2 2 0 0 1 2-2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>'
+});
+/* sample contacts and offers for the sample hosts, and three hosts that offer services but no facilities */
+const DIRECT0={
+ 'h-kgate':{type:'cafe',phone:'+7 700 000 10 01',wa:1,langs:['kk','ru'],offers:{meal:{p:2500}}},
+ 'h-saty1':{type:'guesthouse',phone:'+7 700 000 10 02',wa:1,langs:['kk','ru','en'],offers:{room:{p:15000},meal:{p:3000},transfer:{p:45000,note:'Almaty to Saty'}}},
+ 'h-saty2':{type:'guesthouse',phone:'+7 700 000 10 03',wa:1,langs:['kk','ru'],offers:{room:{p:10000},meal:{p:2500}}},
+ 'h-ctop':{type:'guesthouse',phone:'+7 700 000 10 04',wa:1,langs:['ru','kk','en'],offers:{room:{p:12000},transfer:{p:40000,note:'Almaty to Charyn'}}},
+ 'h-criv':{type:'yurt',phone:'+7 700 000 10 05',wa:1,langs:['kk','ru'],offers:{room:{p:9000},meal:{p:2800}}},
+ 'h-bal':{type:'cafe',phone:'+7 700 000 10 06',wa:1,langs:['ru','kk'],offers:{meal:{p:2200}}},
+ 'h-bur1':{type:'guesthouse',phone:'+7 700 000 10 07',wa:1,langs:['ru','kk'],offers:{room:{p:14000},transfer:{p:35000,note:'Astana to Burabay'}}},
+ 'h-bur2':{type:'cafe',phone:'+7 700 000 10 08',wa:1,langs:['ru','kk'],offers:{meal:{p:2600}}},
+ 'h-alt1':{type:'yurt',phone:'+7 700 000 10 09',wa:1,langs:['kk','ru'],offers:{room:{p:8000}}},
+ 'h-alt2':{type:'guesthouse',phone:'+7 700 000 10 10',wa:1,langs:['kk','ru','en'],offers:{room:{p:12000},guide:{p:25000},meal:{p:2800}}},
+ 'h-sguide':{type:'guide',phone:'+7 700 000 10 11',wa:1,langs:['kk','ru','en'],offers:{guide:{p:20000},horse:{p:5000}}},
+ 'h-shorse':{type:'horses',phone:'+7 700 000 10 12',wa:1,langs:['kk','ru'],offers:{horse:{p:5000}}},
+ 'h-sdriver':{type:'driver',phone:'+7 700 000 10 13',wa:1,langs:['ru','kk'],offers:{transfer:{p:45000,note:'Almaty to Saty'}}}
+};
+const HOSTS_X=[
+ {id:'h-sguide',park:'kolsai',name:'Yerlan, mountain guide',village:'Saty village',lat:43.0552,lng:78.4121,hours:'07:00–21:00',rating:4.9,s:{}},
+ {id:'h-shorse',park:'kolsai',name:'Saty horse rental',village:'Saty village',lat:43.0537,lng:78.4088,hours:'08:00–20:00',rating:4.6,s:{}},
+ {id:'h-sdriver',park:'kolsai',name:'Daniyar, driver Almaty to Saty',village:'Saty village',lat:43.0567,lng:78.4146,hours:'06:00–22:00',rating:4.7,s:{}}
+];
+const DST='sr_direct_state';
+/* contacts and offers of a host: what the host saved on this phone, else the server, else the sample */
+function dGet(h){if(!h)return null;const st=load(DST,{})[h.id],sv=h.direct&&typeof h.direct==='object'&&(h.direct.phone||h.direct.tg)?h.direct:null,d=st||sv||DIRECT0[h.id];
+  if(!d||(!d.phone&&!d.tg))return null;return Object.assign({type:'guesthouse',wa:1,tg:'',langs:['ru'],offers:{}},d);}
+const digits=p=>String(p||'').replace(/[^0-9]/g,'');
+const dSample=d=>/^7700000/.test(digits(d.phone));
+function hostIco(h){const d=dGet(h);return d&&{guide:'guide',horses:'horse',driver:'car'}[d.type]||'host';}
+const hostLang=d=>(d.langs||[]).find(l=>l==='kk'||l==='ru')||'ru';
+const offersOf=d=>Object.entries(d.offers||{}).filter(([k])=>OFFER[k]);
+function callBtn(d){if(!d.phone)return '';return dSample(d)?`<button type="button" class="btn btn-line sm" data-hddemo="call">${ico('hdphone',14)} <span>Call</span></button>`
+  :`<a class="btn btn-line sm" href="tel:+${digits(d.phone)}">${ico('hdphone',14)} <span>Call</span></a>`;}
+/* the block on a host's card */
+function directBlock(h){const d=dGet(h);if(!d)return '';const of=offersOf(d);
+  return `<section class="pk-direct"><h4 class="pk-h4">Direct from the host</h4>
+   ${of.length?`<ul class="pk-svcs pk-offers">${of.map(([k,o])=>`<li><span class="pk-svci">${ico(OFFER[k].ico,16)}</span><span class="pk-svcn"><span>${esc(OFFER[k].l)}</span>${o.note?`<br><small class="muted">${esc(o.note)}</small>`:''}</span><span class="pk-oprice"><b translate="no">${kzt(o.p)}</b> <small class="muted">${esc(OFFER[k].u)}</small></span></li>`).join('')}</ul>`:''}
+   <p class="pk-langs"><span>Speaks:</span> ${N(esc(d.langs.map(l=>LANGN[l]||l).join(', ')))}</p>
+   <div class="pk-acts"><button type="button" class="btn btn-gold sm" data-hdwrite="${h.id}">${ico('hdchat',14)} <span>Write to the host</span></button>${callBtn(d)}</div>
+   <p class="src"><span>No agency and no commission: you agree on everything and pay the host directly.</span>${dSample(d)?' <span>Sample contact for the prototype.</span>':''}</p></section>`;}
+/* the short list on the park panel */
+function directNear(pk){const hs=hostsOf(pk).map(h=>({h,d:dGet(h)})).filter(x=>x.d&&offersOf(x.d).length);if(!hs.length)return '';
+  return `<h4 class="pk-h4">Stay, guides and rentals nearby</h4><ul class="pk-issues pk-dlist">${hs.slice(0,7).map(({h,d})=>{const [k,o]=offersOf(d)[0];
+    return `<li><button data-hostsel="${h.id}"><span class="pk-mk sm pk-host">${ico(hostIco(h),14)}</span><span><b>${esc(h.name)}</b><br><small class="muted"><span>${esc(OFFER[k].l)}</span>: ${N(kzt(o.p))} · <span>${esc(OFFER[k].u)}</span></small></span></button></li>`;}).join('')}</ul>
+   <p class="src">Direct contact, no commission.</p>`;}
+/* the card in the offline pack: numbers stay on the phone */
+function directPackCard(pk){const hs=hostsOf(pk).map(h=>({h,d:dGet(h)})).filter(x=>x.d);if(!hs.length)return '';
+  return `<section class="pk-card pk-dpack"><h3>Local hosts: direct contacts</h3><ul class="pk-rec">${hs.map(({h,d})=>`<li><div><b>${esc(h.name)}</b> <small class="muted">${esc(HTYPE[d.type]||'')}</small><br>
+    ${d.phone?(dSample(d)?N(esc(d.phone)):`<a href="tel:+${digits(d.phone)}" translate="no">${esc(d.phone)}</a>`):''}${d.tg?N(' · Telegram @'+esc(d.tg)):''}<br>
+    <small class="muted">${offersOf(d).map(([k])=>`<span>${esc(OFFER[k].l)}</span>`).join(', ')}</small></div><button type="button" class="btn btn-line sm" data-hdwrite="${h.id}">Write</button></li>`).join('')}</ul>
+   <p class="muted pk-small">Saved with this page. A call or SMS needs mobile signal, but not internet.</p>${hs.some(x=>dSample(x.d))?'<p class="src">Sample numbers for the prototype.</p>':''}</section>`;}
+
+/* the request: written in the host's language from what the traveler ticks, so nobody needs a translator */
+const RU_ITEM={room:'комната на ночь',guide:'проводник',horse:'лошади',transfer:'трансфер на машине',meal:'домашняя еда'};
+const KK_ITEM={room:'түнеуге бөлме',guide:'жолсерік гид',horse:'ат',transfer:'көлікпен трансфер',meal:'үй тамағы'};
+const RU_SPK={en:'английском',zh:'китайском',de:'немецком'},KK_SPK={en:'ағылшынша',zh:'қытайша',de:'немісше'};
+const KK_MON=['қаңтар','ақпан','наурыз','сәуір','мамыр','маусым','шілде','тамыз','қыркүйек','қазан','қараша','желтоқсан'];
+const dDay=s=>new Date(s+'T12:00');
+const dRu=s=>dDay(s).toLocaleDateString('ru-RU',{day:'numeric',month:'long'});
+const dKk=s=>`${dDay(s).getDate()} ${KK_MON[dDay(s).getMonth()]}`;
+const ruPeople=n=>{const a=n%10,b=n%100;return `${n} ${a>=2&&a<=4&&(b<12||b>14)?'человека':'человек'}`;};
+function hdText(o,hl){const ul=lang(),two=o.to&&o.to>o.from,L=[];
+  if(hl==='kk'){L.push('Сәлеметсіз бе! Сізге Samruk Travel арқылы жазып отырмын.');
+    if(o.need.length)L.push(`Бізге керегі: ${o.need.map(k=>KK_ITEM[k]).join(', ')}.`);
+    if(o.from)L.push(two?`Күндері: ${dKk(o.from)} – ${dKk(o.to)}.`:`Күні: ${dKk(o.from)}.`);
+    L.push(`Біз ${o.n} адамбыз.`);if(o.name)L.push(`Менің атым ${o.name}.`);if(KK_SPK[ul])L.push(`Мен ${KK_SPK[ul]} сөйлеймін.`);
+    if(o.note)L.push(`Қосымша: ${o.note}`);L.push('Осы күндері бос боласыз ба және бағасы қанша болады? Рақмет!');}
+  else{L.push('Здравствуйте! Пишу вам через Samruk Travel.');
+    if(o.need.length)L.push(`Нас интересует: ${o.need.map(k=>RU_ITEM[k]).join(', ')}.`);
+    if(o.from)L.push(two?`Даты: с ${dRu(o.from)} по ${dRu(o.to)}.`:`Дата: ${dRu(o.from)}.`);
+    L.push(`Нас ${ruPeople(o.n)}.`);if(o.name)L.push(`Меня зовут ${o.name}.`);if(RU_SPK[ul])L.push(`Я говорю на ${RU_SPK[ul]} языке.`);
+    if(o.note)L.push(`Комментарий: ${o.note}`);L.push('Подскажите, пожалуйста, вы свободны в эти даты и сколько это будет стоить? Спасибо!');}
+  return L.join('\n');}
+/* what the message says, in the traveler's language, when it is not the host's language */
+function hdSummary(o,hl){const ul=lang();if(ul===hl)return '';
+  const items=o.need.map(k=>{const s=tx(OFFER[k].l);return ul==='de'?s:s.charAt(0).toLowerCase()+s.slice(1);}).join(', '),f=s=>dDay(s).toLocaleDateString(loc(),{day:'numeric',month:'long'}),dates=o.from?(o.to&&o.to>o.from?`${f(o.from)} – ${f(o.to)}`:f(o.from)):'';
+  return LL(`It says that you need ${items||'help'}${dates?`, ${dates}`:''}, for ${o.n} people${o.name?`, that your name is ${o.name}`:''}, and asks whether the host is free and what it costs.`,
+    `内容：您需要${items||'帮助'}${dates?`，${dates}`:''}，共${o.n}人${o.name?`，您的名字是${o.name}`:''}，并询问对方是否有空以及价格。`,
+    `Inhalt: Sie brauchen ${items||'Hilfe'}${dates?`, ${dates}`:''}, für ${o.n} Personen${o.name?`, Ihr Name ist ${o.name}`:''}, und fragen, ob der Gastgeber frei ist und was es kostet.`,
+    `В сообщении: вам нужно ${items||'помочь'}${dates?`, ${dates}`:''}, вас ${o.n}${o.name?`, вас зовут ${o.name}`:''}, и вопрос, свободен ли хозяин и сколько это стоит.`,
+    `Хабарламада: сізге ${items||'көмек'} керек${dates?`, ${dates}`:''}, сіздер ${o.n} адамсыздар${o.name?`, атыңыз ${o.name}`:''}, және қожайын бос па, бағасы қанша деген сұрақ.`);}
+function openWrite(id){const h=hostById(id),d=dGet(h);if(!h||!d)return;const of=offersOf(d),me0=load('sr_hd_me',{}),tomorrow=new Date(Date.now()+864e5).toISOString().slice(0,10);
+  modal(`<form class="pk-hdform" data-hdform="${h.id}" novalidate><h3>Write to the host</h3><p><b>${esc(h.name)}</b> <small class="muted">${esc(HTYPE[d.type]||'')}</small></p>
+   ${of.length?`<fieldset class="pk-hdneed"><legend>What do you need?</legend>${of.map(([k],i)=>`<label><input type="checkbox" data-hdneed="${k}" ${i===0?'checked':''}> ${ico(OFFER[k].ico,16)} <span>${esc(OFFER[k].l)}</span></label>`).join('')}</fieldset>`:''}
+   <div class="grid2"><div class="field"><label for="hdFrom">From</label><input id="hdFrom" type="date" value="${tomorrow}"></div><div class="field"><label for="hdTo">To (optional)</label><input id="hdTo" type="date"></div>
+   <div class="field"><label for="hdPeople">People</label><input id="hdPeople" type="number" min="1" max="30" value="${+me0.n||2}"></div><div class="field"><label for="hdName">Your name</label><input id="hdName" maxlength="40" autocomplete="given-name" value="${esc(me0.name||'')}"></div></div>
+   <div class="field"><label for="hdNote">Anything else (optional, any language)</label><input id="hdNote" maxlength="200"></div>
+   <div class="pk-hdmsg"><p class="pk-hdlab"></p><pre id="hdText" translate="no"></pre><p class="muted pk-small" id="hdSum"></p></div>
+   <div class="pk-acts" id="hdActs"></div>
+   <p class="src">The message opens in your own WhatsApp, Telegram or SMS app. Samruk Travel does not see it and takes no commission.</p></form>`);
+  hdUpdate();}
+function hdUpdate(){const f=document.querySelector('[data-hdform]');if(!f)return;const h=hostById(f.dataset.hdform),d=dGet(h);if(!d)return;
+  const v=s=>(f.querySelector(s)||{}).value||'';
+  const o={need:[...f.querySelectorAll('[data-hdneed]:checked')].map(c=>c.dataset.hdneed),from:v('#hdFrom'),to:v('#hdTo'),n:Math.max(1,Math.min(30,Math.round(+v('#hdPeople')||1))),name:v('#hdName').trim().slice(0,40),note:v('#hdNote').trim().slice(0,200)};
+  const hl=hostLang(d),text=hdText(o,hl),pre=$('#hdText');pre.textContent=text;pre.lang=hl;
+  f.querySelector('.pk-hdlab').innerHTML=N(esc(LL(`Message to the host, in ${hl==='kk'?'Kazakh':'Russian'}`,`发给接待方的消息（${hl==='kk'?'哈萨克语':'俄语'}）`,`Nachricht an den Gastgeber, auf ${hl==='kk'?'Kasachisch':'Russisch'}`,`Сообщение хозяину, на ${hl==='kk'?'казахском':'русском'}`,`Қожайынға хабарлама, ${hl==='kk'?'қазақша':'орысша'}`)));
+  $('#hdSum').innerHTML=N(esc(hdSummary(o,hl)));
+  const enc=encodeURIComponent(text),dg=digits(d.phone),sm=dSample(d);
+  const btn=(kind,label,href,gold)=>sm?`<button type="button" class="btn ${gold?'btn-gold':'btn-line'} sm" data-hddemo="${kind}">${ico('hdchat',14)} <span translate="no">${label}</span></button>`
+    :`<a class="btn ${gold?'btn-gold':'btn-line'} sm" href="${href}" ${/^https:/.test(href)?'target="_blank" rel="noopener"':''} data-hdgo="${kind}">${ico('hdchat',14)} <span translate="no">${label}</span></a>`;
+  $('#hdActs').innerHTML=(d.wa&&d.phone?btn('wa','WhatsApp',`https://wa.me/${dg}?text=${enc}`,1):'')+(d.tg?btn('tg','Telegram',`https://t.me/${encodeURIComponent(d.tg)}`,!(d.wa&&d.phone)):'')
+    +(d.phone?btn('sms','SMS',`sms:+${dg}?body=${enc}`,0):'')+`<button type="button" class="btn btn-line sm" data-hdcopy>Copy the text</button>`;
+  save('sr_hd_me',{name:o.name,n:o.n});}
+async function hdCopy(silent){const p=$('#hdText'),t=p?p.textContent:'';
+  try{await navigator.clipboard.writeText(t);if(!silent)pkToast(`✓ ${N(LL('Copied','已复制','Kopiert','Скопировано','Көшірілді'))}`);return true;}
+  catch(x){if(p){const r=document.createRange();r.selectNodeContents(p);const s=getSelection();s.removeAllRanges();s.addRange(r);}return false;}}
+/* the host edits contacts and offers in the host cabinet */
+function directEditCard(h){const d=dGet(h)||{type:'guesthouse',phone:'',wa:1,tg:'',langs:['kk','ru'],offers:{}};
+  return `<section class="pk-card pk-wide"><h3>Direct requests from travelers</h3><p class="muted pk-small">Travelers write or call you directly, in Russian or Kazakh, even if they read the site in another language. No commission.</p>
+  <form class="pk-hdedit" data-hdedit="${h.id}">
+   <div class="grid2"><div class="field"><label for="hdePhone">Phone</label><input id="hdePhone" inputmode="tel" maxlength="20" value="${esc(d.phone||'')}" placeholder="+7 7__ ___ __ __"></div>
+   <div class="field"><label for="hdeTg">Telegram username (optional)</label><input id="hdeTg" maxlength="33" value="${esc(d.tg||'')}" placeholder="username" autocomplete="off"></div>
+   <div class="field"><label for="hdeType">You are</label><select id="hdeType">${Object.entries(HTYPE).map(([k,l])=>`<option value="${k}" ${k===d.type?'selected':''}>${esc(l)}</option>`).join('')}</select></div></div>
+   <label class="pk-check1"><input type="checkbox" id="hdeWa" ${d.wa?'checked':''}> <span>This phone has WhatsApp</span></label>
+   <fieldset class="pk-hdlangs"><legend>Languages you speak</legend>${Object.entries(LANGN).map(([k,l])=>`<label><input type="checkbox" data-hdelang="${k}" ${(d.langs||[]).includes(k)?'checked':''}> <span translate="no">${l}</span></label>`).join('')}</fieldset>
+   <fieldset class="pk-hdoff"><legend>What you offer</legend>${Object.keys(OFFER).map(k=>{const o=(d.offers||{})[k];return `<label class="pk-hdorow"><input type="checkbox" data-hdeoff="${k}" ${o?'checked':''}> <span class="pk-svci">${ico(OFFER[k].ico,16)}</span><span class="pk-svcn">${esc(OFFER[k].l)}</span><span class="pk-price"><input type="number" min="0" step="500" value="${o?o.p:OFFER[k].p}" data-hdep="${k}" aria-label="${esc(tx('Price'))}"> ₸</span><small class="muted">${esc(OFFER[k].u)}</small></label>`;}).join('')}</fieldset>
+   <button class="btn btn-gold sm" type="submit">Save contacts and offers</button></form></section>`;}
+async function directSave(f){const id=f.dataset.hdedit,h=hostById(id);if(!h)return;const v=s=>((f.querySelector(s)||{}).value||'').trim();
+  const d={type:v('#hdeType')||'guesthouse',phone:v('#hdePhone'),wa:f.querySelector('#hdeWa').checked?1:0,tg:v('#hdeTg').replace(/^@/,''),
+    langs:[...f.querySelectorAll('[data-hdelang]:checked')].map(c=>c.dataset.hdelang),offers:{}};
+  f.querySelectorAll('[data-hdeoff]').forEach(c=>{if(c.checked){const k=c.dataset.hdeoff;d.offers[k]={p:Math.max(0,Math.round(+f.querySelector(`[data-hdep="${k}"]`).value||0))};}});
+  if(d.phone&&!/^\+?[0-9 ()-]{6,20}$/.test(d.phone)){pkToast(N(LL('Check the phone number.','请检查电话号码。','Prüfen Sie die Telefonnummer.','Проверьте номер телефона.','Телефон нөмірін тексеріңіз.')));return;}
+  if(d.tg&&!/^[A-Za-z0-9_]{5,32}$/.test(d.tg)){pkToast(N(LL('A Telegram username has 5 to 32 letters, digits or _.','Telegram 用户名由5到32个字母、数字或下划线组成。','Ein Telegram-Benutzername hat 5 bis 32 Buchstaben, Ziffern oder _.','Имя пользователя Telegram: от 5 до 32 латинских букв, цифр или _.','Telegram пайдаланушы аты: 5-тен 32-ге дейін латын әрпі, сан немесе _.')));return;}
+  if(!d.phone&&!d.tg){pkToast(N(LL('Add a phone or a Telegram username so travelers can reach you.','请填写电话或 Telegram 用户名，方便游客联系您。','Geben Sie eine Telefonnummer oder einen Telegram-Namen an, damit Reisende Sie erreichen.','Укажите телефон или Telegram, чтобы туристы могли с вами связаться.','Туристер хабарласа алуы үшін телефон немесе Telegram жазыңыз.')));return;}
+  if(!d.langs.length)d.langs=['ru'];
+  const st=load(DST,{});st[id]=d;save(DST,st);
+  if(API&&online()){try{await rest(`hosts?id=eq.${encodeURIComponent(id)}`,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({direct:d,updated_at:new Date().toISOString()})});}catch(x){console.warn('[direct] the server did not take the contacts',x);}}
+  bc('change');pkToast(`✓ ${N(LL('Saved. Travelers see it on the park map.','已保存，游客会在公园地图上看到。','Gespeichert. Reisende sehen es auf der Parkkarte.','Сохранено. Туристы увидят это на карте парка.','Сақталды. Туристер мұны саябақ картасынан көреді.'))}`);renderHost();}
+/* optional part of the host registration form */
+function directJoinFieldset(){return `<fieldset class="pk-hdjoin"><legend><span>Direct requests from travelers (optional)</span></legend>
+  <p class="muted pk-small">Rooms, a guide, horses or a transfer: travelers write to you directly, in Russian or Kazakh, and see your phone number. No commission.</p>
+  <label class="pk-check1"><input type="checkbox" id="jdWa" checked> <span>My phone has WhatsApp</span></label>
+  <div class="field"><label for="jdTg">Telegram username (optional)</label><input id="jdTg" maxlength="33" placeholder="username" autocomplete="off"></div>
+  <fieldset class="pk-hdlangs"><legend>Languages you speak</legend>${Object.entries(LANGN).map(([k,l])=>`<label><input type="checkbox" data-jdlang="${k}" ${k==='kk'||k==='ru'?'checked':''}> <span translate="no">${l}</span></label>`).join('')}</fieldset>
+  <fieldset class="pk-hdoff"><legend>What you offer</legend>${Object.keys(OFFER).map(k=>`<label class="pk-hdorow"><input type="checkbox" data-jdoff="${k}"> <span class="pk-svci">${ico(OFFER[k].ico,16)}</span><span class="pk-svcn">${esc(OFFER[k].l)}</span><span class="pk-price"><input type="number" min="0" step="500" value="${OFFER[k].p}" data-jdp="${k}" aria-label="${esc(tx('Price'))}"> ₸</span><small class="muted">${esc(OFFER[k].u)}</small></label>`).join('')}</fieldset></fieldset>`;}
+function directJoinData(type){const offers={};document.querySelectorAll('[data-jdoff]').forEach(c=>{if(c.checked){const k=c.dataset.jdoff;offers[k]={p:Math.max(0,Math.round(+document.querySelector(`[data-jdp="${k}"]`).value||0))};}});
+  const tg=(($('#jdTg')||{}).value||'').trim().replace(/^@/,'');
+  return {type:HTYPE[type]?type:'guesthouse',wa:$('#jdWa')&&$('#jdWa').checked?1:0,tg:/^[A-Za-z0-9_]{5,32}$/.test(tg)?tg:'',langs:[...document.querySelectorAll('[data-jdlang]:checked')].map(c=>c.dataset.jdlang),offers};}
+document.addEventListener('click',async e=>{const q=s=>e.target.closest(s);let b;
+  if(b=q('[data-hdwrite]')){openWrite(b.dataset.hdwrite);return;}
+  if(b=q('[data-hddemo]')){e.preventDefault();const k=b.dataset.hddemo,app={wa:'WhatsApp',tg:'Telegram',sms:'SMS'}[k];if(app)await hdCopy(true);
+    pkToast(N(esc(k==='call'?LL('Sample number for the prototype. In the real product this calls the host.','原型中的示例号码。正式产品中会直接拨打接待方电话。','Beispielnummer im Prototyp. Im echten Produkt wird hier der Gastgeber angerufen.','Номер-пример для прототипа. В реальной версии здесь будет звонок хозяину.','Прототиптегі үлгі нөмір. Нақты нұсқада мұнда қожайынға қоңырау шалынады.')
+      :LL(`Sample number for the prototype. In the real product this opens ${app} with the message ready. The text is copied.`,`原型中的示例号码。正式产品中会打开${app}并填好消息。文字已复制。`,`Beispielnummer im Prototyp. Im echten Produkt öffnet sich ${app} mit der fertigen Nachricht. Der Text ist kopiert.`,`Номер-пример для прототипа. В реальной версии откроется ${app} с готовым сообщением. Текст скопирован.`,`Прототиптегі үлгі нөмір. Нақты нұсқада ${app} дайын хабарламамен ашылады. Мәтін көшірілді.`))));return;}
+  if(q('[data-hdcopy]')){hdCopy();return;}
+  if((b=q('[data-hdgo]'))&&b.dataset.hdgo==='tg'){hdCopy(true);pkToast(N(esc(LL('The text is copied: paste it in the chat.','文字已复制：请粘贴到聊天中。','Der Text ist kopiert: Fügen Sie ihn im Chat ein.','Текст скопирован: вставьте его в чат.','Мәтін көшірілді: оны чатқа қойыңыз.'))));}
+});
+document.addEventListener('input',e=>{if(e.target.closest&&e.target.closest('[data-hdform]'))hdUpdate();});
+document.addEventListener('change',e=>{if(e.target.closest&&e.target.closest('[data-hdform]'))hdUpdate();});
+document.addEventListener('submit',e=>{const f=e.target.closest('[data-hdedit]');if(f){e.preventDefault();directSave(f);return;}if(e.target.closest('[data-hdform]'))e.preventDefault();});
+
 /* ---------- HOST CABINET: what a guesthouse owner sees on their phone ---------- */
 const hcur={id:null};
 function openHost(id,fromHistory){if(id==='new'){openJoin(fromHistory);return;}const hs=hosts();hcur.id=(id&&hs.some(h=>h.id===id))?id:(load(HME,null)||HOSTS0[1].id);
@@ -861,6 +1091,7 @@ function renderHost(){
       <ul class="pk-svcs pk-svcedit">${Object.keys(SVC).map(k=>{const v=h.svc[k];return `<li class="${v&&v.open?'':'off'}"><span class="pk-svci">${ico(SVC_ICO[k],16)}</span><span class="pk-svcn">${esc(SVC[k].l)}</span>
         ${v?`<label class="pk-price"><input type="number" min="0" step="50" value="${v.p}" data-hprice="${k}" aria-label="${esc(tx('Price'))}"> ₸</label><button class="btn ${v.open?'btn-gold':'btn-line'} sm" data-hopen="${k}" aria-pressed="${v.open}">${v.open?'Open':'Closed'}</button>`
           :`<button class="btn btn-line sm" data-hadd="${k}">+ <span>Offer this</span></button>`}</li>`;}).join('')}</ul></section>
+    ${directEditCard(h)}
     <section class="pk-card"><h3>Check a pass</h3><p class="muted pk-small">Scan the visitor's QR or type the code under it. Works with no signal.</p>
       <div class="pk-acts"><button class="btn btn-gold sm" data-hscan>Scan QR</button></div>
       <form class="pk-codeform" data-hcode><input id="hostCode" placeholder="ABCDE-123456" autocomplete="off" aria-label="${esc(tx('Pass code'))}"><button class="btn btn-line sm" type="submit">Check</button></form>
@@ -907,7 +1138,7 @@ async function checkPassText(text,quiet){
 const JAPPS='sr_join_apps',JMINE='sr_join_mine',OFTOK='sr_office_session';
 const jcur={form:false,pin:null,pk:null,doc:null,busy:false};const jmap={m:null,g:null};
 const OWNER_KIND={person:'Private person',ip:'Sole proprietor (IP)',too:'Company (TOO / LLP)'};
-const PLACE_TYPE={guesthouse:'Guesthouse',cafe:'Café',yurt:'Yurt camp',shop:'Shop'};
+const PLACE_TYPE={guesthouse:'Guesthouse',cafe:'Café',yurt:'Yurt camp',shop:'Shop',guide:'Mountain guide',horses:'Horse rental',driver:'Driver'};
 const BASIS={own:'Owner',lease:'Lease',use:'Free use (family or the village)'};
 const JSTATUS={new:'Waiting for the park office',more:'More documents needed',approved:'Approved',rejected:'Rejected'};
 /* Kazakhstan IIN / BIN: 12 digits, the last one is a check digit (two weight rounds, mod 11) */
@@ -966,6 +1197,7 @@ function renderJoin(){
       <div class="map pk-map pk-hmap" id="joinMap" role="region" aria-label="${esc(tx('Map'))}"></div>
       <p class="src" id="jpPin"></p>
     </fieldset>
+    ${directJoinFieldset()}
     <fieldset><legend><b>3</b> <span>Your right to the property</span></legend>
       <div class="pk-radio" role="radiogroup" aria-label="${esc(tx('Right to the property'))}">${Object.entries(BASIS).map(([k,l],i)=>`<label><input type="radio" name="jbasis" value="${k}" ${i===0?'checked':''}> <span>${esc(l)}</span></label>`).join('')}</div>
       <div class="grid2"><div class="field"><label for="jrCad">Cadastral number of the land or building</label><input id="jrCad" required maxlength="30" inputmode="numeric" placeholder="03:047:105:318" autocomplete="off"></div>
@@ -1002,7 +1234,7 @@ function joinData(){
   const v=id=>($(id)&&$(id).value||'').trim(),kind=(document.querySelector('[name=jkind]:checked')||{}).value,basis=(document.querySelector('[name=jbasis]:checked')||{}).value,pk=$('#jpPark')?$('#jpPark').value:'kolsai',svc={};
   document.querySelectorAll('[data-jfs]').forEach(c=>{if(c.checked){const k=c.dataset.jfs;svc[k]={p:Math.max(0,Math.round(+document.querySelector(`[data-jfp="${k}"]`).value||0)),open:true};}});
   return {owner:{name:v('#jfName'),phone:v('#jfPhone'),id:v('#jfId').replace(/\s/g,''),kind},
-    place:{name:v('#jpName'),type:v('#jpType'),park:pk,village:v('#jpVillage'),hours:v('#jpHours'),lat:jcur.pin?+jcur.pin.lat.toFixed(5):null,lng:jcur.pin?+jcur.pin.lng.toFixed(5):null,svc},
+    place:{name:v('#jpName'),type:v('#jpType'),park:pk,village:v('#jpVillage'),hours:v('#jpHours'),lat:jcur.pin?+jcur.pin.lat.toFixed(5):null,lng:jcur.pin?+jcur.pin.lng.toFixed(5):null,svc,direct:directJoinData(v('#jpType'))},
     right:{basis,cadastre:v('#jrCad'),certNo:v('#jrCert'),certDate:v('#jrDate')},consent:!!($('#jcConsent')&&$('#jcConsent').checked),truth:!!($('#jcTrue')&&$('#jcTrue').checked)};
 }
 function joinEval(d){
@@ -1012,7 +1244,7 @@ function joinEval(d){
     ['phone',/^\+?[0-9 ()-]{6,20}$/.test(d.owner.phone)?'ok':d.owner.phone?'bad':'wait','Phone number'],
     ['iin',idc.ok?'ok':d.owner.id.length===12?'bad':'wait',idc.ok?(idc.kind==='bin'?'BIN check digit is correct':'IIN check digit and birth date are correct'):'IIN / BIN check digit'],
     ['kind',!idc.ok?'wait':((d.owner.kind==='too')===(idc.kind==='bin'))?'ok':'bad',d.owner.kind==='too'?'A company has a BIN, not an IIN':'A person or sole proprietor has an IIN, not a BIN'],
-    ['place',d.place.name.length>=2&&Object.keys(d.place.svc).length?'ok':'wait','Name of the place and at least one facility'],
+    ['place',d.place.name.length>=2&&(Object.keys(d.place.svc).length||Object.keys(d.place.direct.offers).length)?'ok':'wait','Name of the place and at least one facility or service'],
     ['distance',km==null?'wait':km<=50?'ok':'bad',km==null?'Place on the map':null,km],
     ['cadastre',CADASTRE.test(d.right.cadastre)?'ok':d.right.cadastre?'bad':'wait','Cadastral number format, like 03:047:105:318'],
     ['document',jcur.doc?'ok':'wait','Document attached'],
@@ -1096,7 +1328,7 @@ async function decideApp(id,decision,note){
   if(API){await officeCall({action:'decide',id,decision,note});await loadOfficeApps();rerender();return;}
   const all=load(JAPPS,[]),a=all.find(x=>x.id===id);if(!a)return;a.status=decision;a.note=note||null;
   if(decision==='approved'&&!a.host_id){a.host_id='h-'+a.id.slice(1,13);const p=a.place;
-    const m=load(HMINE,[]).filter(x=>x.id!==a.host_id);m.push({id:a.host_id,park:p.park,name:p.name,village:p.village||null,lat:p.lat,lng:p.lng,hours:p.hours||null,svc:p.svc,verified:true});save(HMINE,m);}
+    const m=load(HMINE,[]).filter(x=>x.id!==a.host_id);m.push({id:a.host_id,park:p.park,name:p.name,village:p.village||null,lat:p.lat,lng:p.lng,hours:p.hours||null,svc:p.svc,direct:p.direct?Object.assign({},p.direct,{phone:a.owner.phone}):null,verified:true});save(HMINE,m);}
   save(JAPPS,all);offApps=all;bc('change');rerender();
 }
 function openDoc(id){const a=(offApps||[]).find(x=>x.id===id);if(!a||!a.doc||!a.doc.url)return;

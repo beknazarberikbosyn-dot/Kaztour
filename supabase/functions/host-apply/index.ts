@@ -62,7 +62,16 @@ Deno.serve(async (req) => {
   const lat = Number(p.lat), lng = Number(p.lng), park = str(p.park, 20);
   const svc: Record<string, { p: number; open: boolean }> = {};
   for (const k of SVC) if (p.svc?.[k]) svc[k] = { p: Math.max(0, Math.min(100000, Math.round(Number(p.svc[k].p) || 0))), open: true };
-  const place = { name: str(p.name, 60), type: str(p.type, 20), park, village: str(p.village, 60), hours: str(p.hours, 20), lat, lng, svc };
+  // direct requests: what the host offers travelers (rooms, a guide, horses, a transfer, meals), languages and messengers
+  const OFFERS = ["room", "guide", "horse", "transfer", "meal"], LANGS = ["kk", "ru", "en", "zh", "de"];
+  const pd = p.direct ?? {}, offers: Record<string, { p: number }> = {};
+  for (const k of OFFERS) if (pd.offers?.[k]) offers[k] = { p: Math.max(0, Math.min(1_000_000, Math.round(Number(pd.offers[k].p) || 0))) };
+  const tg = str(pd.tg, 32);
+  const direct = {
+    type: str(pd.type, 20), wa: pd.wa ? 1 : 0, tg: /^[A-Za-z0-9_]{5,32}$/.test(tg) ? tg : "",
+    langs: (Array.isArray(pd.langs) ? pd.langs : []).filter((l: unknown) => LANGS.includes(String(l))).slice(0, 5), offers,
+  };
+  const place = { name: str(p.name, 60), type: str(p.type, 20), park, village: str(p.village, 60), hours: str(p.hours, 20), lat, lng, svc, direct };
   const right = { basis: str(r.basis, 10), cadastre: str(r.cadastre, 30), cert_no: str(r.certNo, 40), cert_date: str(r.certDate, 10) };
 
   const idc = idCheck(owner.id);
@@ -74,7 +83,7 @@ Deno.serve(async (req) => {
   if (!/^\+?[0-9 ()-]{6,20}$/.test(owner.phone)) errors.push("phone");
   if (!idc.ok) errors.push("iin");
   if (!["person", "ip", "too"].includes(owner.kind) || (owner.kind === "too") !== (idc.kind === "bin")) errors.push("kind");
-  if (place.name.length < 2 || !PARKS[park] || !Object.keys(svc).length) errors.push("place");
+  if (place.name.length < 2 || !PARKS[park] || !(Object.keys(svc).length || Object.keys(offers).length)) errors.push("place");
   if (!(dist <= 50)) errors.push("distance");   // the place must serve visitors of this park
   if (!["own", "lease", "use"].includes(right.basis)) errors.push("basis");
   if (!CADASTRE.test(right.cadastre)) errors.push("cadastre");
