@@ -242,9 +242,9 @@ setInterval(()=>{
   const office=!$('#view-office').hidden,busy=!$('#view-parks').hidden||!$('#view-pack').hidden;
   const hv=!$('#view-host').hidden;
   if(outbox().length||load(CKQ,[]).length||load(PQ,[]).length)sync();
-  else if(API&&(office||busy||hv)&&Date.now()-lastPull>(office||hv?2500:12000))Promise.all([pull(),pullHosts()]).then(([a,b])=>{if(a||b)rerender();srvErr=null;}).catch(e=>{srvErr=String(e.message||e);paintNet();});
+  else if(API&&(office||busy||hv)&&Date.now()-lastPull>(office||hv?1200:12000))Promise.all([pull(),pullHosts()]).then(([a,b])=>{if(a||b)rerender();srvErr=null;}).catch(e=>{srvErr=String(e.message||e);paintNet();});
   if(office&&!API){const k=JSON.stringify(checkins().map(c=>c.state));if(k!==tick.k){tick.k=k;renderOffice();}} // overdue check-ins appear without a reload
-},3000);
+},1500);
 
 /* ---------- safety check-in: if I am not back by my time, my contact gets an SMS with my last point ---------- */
 function myCk(){return load(CK,null);}
@@ -333,7 +333,7 @@ function paintNet(){
 }
 function toggleSim(){simOff=!simOff;save(SIM,simOff);paintNet();
   pkToast(simOff?N(LL('Test mode: the site now acts as if there is no signal','测试模式：网站现在模拟没有信号','Testmodus: Die Seite verhält sich jetzt wie ohne Netz','Тестовый режим: сайт ведёт себя так, будто связи нет','Сынақ режимі: сайт байланыс жоқ сияқты жұмыс істейді')):N(LL('Signal is back','信号已恢复','Netz ist wieder da','Связь вернулась','Байланыс қайта пайда болды')));
-  rerender();if(!simOff)setTimeout(sync,900);}
+  rerender();if(!simOff)setTimeout(sync,300);}
 
 /* ---------- park plan: a schematic SVG that needs no internet ---------- */
 function parkSvg(pk,o={}){
