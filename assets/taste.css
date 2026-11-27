@@ -206,3 +206,70 @@ html.intro-pending,html.intro-playing{background:#02040a}
 
 /* while the 3D intro plays, the page ground must not paint over the canvas behind it */
 html.intro-pending body,html.intro-playing body{background:transparent}
+
+/* ---------- fuller page: lighter ground, contrasting bands, pictures where there were only words ---------- */
+:root{--p-bg:#efeeea;--p-surface:#e3e1dc;--surface:#fbfaf8;--surface-2:#efeeea}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--p-bg:#26251e;--p-surface:#2f2e27;--surface:#34332b;--surface-2:#2f2e27}}
+:root[data-theme="dark"]{--p-bg:#26251e;--p-surface:#2f2e27;--surface:#34332b;--surface-2:#2f2e27}
+#parksinfo .pk-hfeat>div,#parksinfo .pk-kpi{background:var(--surface)}
+/* section labels get a short rule so each section starts with a clear mark */
+.section-head .eyebrow,#parksinfo .eyebrow,#trust .eyebrow,.contact .eyebrow{display:flex;align-items:center;gap:10px}
+.section-head .eyebrow::before,#parksinfo .eyebrow::before,#trust .eyebrow::before,.contact .eyebrow::before{content:"";width:24px;height:2px;background:var(--p-action);flex:none}
+.section-head{align-items:end}
+
+/* park features: an icon for each card */
+.pk-hfeat>div{grid-template-columns:40px 1fr;column-gap:12px;row-gap:2px;align-content:start;padding:16px}
+.pk-hfeat>div>svg{grid-row:span 2;width:40px;height:40px;padding:8px;border-radius:10px;background:color-mix(in oklab,var(--p-action) 10%,var(--surface));stroke:var(--p-action);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.pk-hfeat>div>b{font-size:16px}
+.pk-hfeat>div>span{font-size:15px!important}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .pk-hfeat>div>svg{stroke:#a9bdf2;background:rgba(169,189,242,.1)}}
+:root[data-theme="dark"] .pk-hfeat>div>svg{stroke:#a9bdf2;background:rgba(169,189,242,.1)}
+
+/* park block, right column: a real place above the numbers */
+.pk-home{align-items:start}
+.pk-hside{display:grid;gap:12px;position:sticky;top:96px}
+.pk-hphoto{margin:0;position:relative;border-radius:12px;overflow:hidden;aspect-ratio:4/3;background:#3b4a52}
+.pk-hphoto img{width:100%;height:100%;object-fit:cover;display:block}
+.pk-hphoto.noimg img{display:none}
+.pk-hphoto figcaption{position:absolute;left:12px;right:12px;bottom:12px;display:grid;gap:2px;background:#26251e;color:#f1f0ec;border-radius:10px;padding:10px 14px}
+.pk-hnet{font-weight:500;font-size:15px;display:flex;align-items:center;gap:8px}
+.pk-hnet::before{content:"";width:8px;height:8px;border-radius:50%;background:#e0a33a;flex:none}
+.pk-hsent{font-size:13px;color:#bdbab2}
+.pk-hstats .pk-kpi{padding:16px}
+@media (max-width:860px){.pk-hside{position:static}}
+
+/* trust: the one dark band on the page */
+#trust{background:#26251e;color:#f1f0ec}
+#trust h2,#trust h3,#trust b,#trust .policy span{color:#f1f0ec}
+#trust .eyebrow{color:#bdbab2}
+#trust .stat{background:#313029;border-color:#3d3c34}
+#trust .stat b{color:#f1f0ec;font-size:40px}
+#trust .stat span{color:#bdbab2}
+#trust .tick{color:#9fd0b2}
+#trust .guide{background:#313029;border-color:#3d3c34;color:#f1f0ec}
+#trust .guide small{color:#bdbab2}
+#trust .ava{background:#f1f0ec!important;color:#26251e!important}
+#trust .policy>div{border-color:#3d3c34}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) #trust{background:#1c1b16}}
+:root[data-theme="dark"] #trust{background:#1c1b16}
+
+/* tour cards: the price row sits at the bottom, a little more weight on the name */
+.tour-body h3{font-size:19px}
+.tour-price b{font-size:22px}
+/* contact: buttons get a tinted icon tile */
+.cbtn svg{background:color-mix(in oklab,var(--p-action) 10%,var(--surface));stroke:var(--p-action);border-radius:8px;padding:6px;width:32px;height:32px}
+.cbtn{background:var(--surface)}
+/* the last row of routes: a planner card fills the two empty places */
+.tour-cta{grid-column:span 2;display:flex;flex-direction:column;justify-content:center;gap:10px;padding:32px;border-radius:12px;background:#26251e;color:#f1f0ec}
+.tour-cta h3{color:#f1f0ec;font-size:clamp(22px,2vw,30px);letter-spacing:-.03em;line-height:1.15;margin:0}
+.tour-cta p{color:#d9d7d1;max-width:46ch;margin:0}
+.tour-cta .eyebrow{color:#bdbab2;display:flex;align-items:center;gap:10px}
+.tour-cta .eyebrow::before{content:"";width:24px;height:2px;background:#6f93ff}
+.tour-cta-btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+.tour-cta .btn-gold{background:#2456d6;color:#fff}
+.tour-cta .btn-line{background:rgba(255,255,255,.12);color:#f1f0ec}
+@media (max-width:460px){.tour-cta{grid-column:1/-1;padding:24px}}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .tour-cta{background:#1c1b16;border:1px solid #3a3931}}
+:root[data-theme="dark"] .tour-cta{background:#1c1b16;border:1px solid #3a3931}
+.rev-more{display:flex;justify-content:center;margin-top:20px}
+.rev-more .btn[hidden]{display:none}

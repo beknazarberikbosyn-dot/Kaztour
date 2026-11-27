@@ -658,19 +658,22 @@ html.intro-done #view-home .hero-grid>*:nth-child(2){animation-delay:.14s}
         <h2 id="pkhTitle">Toilets, water and signal: know before you go</h2>
         <p class="lead">Tourism in our national parks grows faster than their services. Kolsai has no stable mobile signal, and visitors complain about toilets and litter. So every trip now works offline, shows where the facilities are, and lets you tell the park about a problem in one tap.</p>
         <div class="pk-hfeat">
-          <div><b>Offline trip pack</b><span>Ticket QR, programme, SOS numbers, a park plan with your GPS position and Kazakh phrases. Opens with no signal.</span></div>
-          <div><b>Facilities map</b><span>Toilets, bins, water, first aid and where the signal is, with live status from other visitors.</span></div>
-          <div><b>One-tap reports</b><span>"Bin is full", "No signal here". Saved on your phone and sent when the signal returns.</span></div>
-          <div><b>Park office panel</b><span>Rangers see hotspots, send staff, get a cleaning round and a map of signal gaps for mobile operators.</span></div>
-          <div><b>Safety check-in</b><span>Say when you will be back. If you are late, your contact gets an SMS with your last point.</span></div>
-          <div><b>Relay by QR</b><span>No signal? Pass your reports and last point to a traveler you meet; their phone sends them later.</span></div>
-          <div><b>Facilities from local hosts</b><span>Guesthouses and cafés near the park open their toilets, showers, water and Wi-Fi. Buy a pass online; it works with no signal.</span></div>
-          <div><b>Host cabinet</b><span>Hosts set prices, open or close a facility, check passes offline and see their income.</span></div>
+          <div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10v18H7z"/><path d="M10 7h4v4h-4zM10 15h4"/></svg><b>Offline trip pack</b><span>Ticket QR, programme, SOS numbers, a park plan with your GPS position and Kazakh phrases. Opens with no signal.</span></div>
+          <div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg><b>Facilities map</b><span>Toilets, bins, water, first aid and where the signal is, with live status from other visitors.</span></div>
+          <div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6 6 0 0 1 6 6c0 4-6 11-6 11S6 13 6 9a6 6 0 0 1 6-6z"/><path d="M12 7v3M12 12.5v.5"/></svg><b>One-tap reports</b><span>"Bin is full", "No signal here". Saved on your phone and sent when the signal returns.</span></div>
+          <div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v12H3z"/><path d="M8 20h8M12 16v4M7 12l3-3 3 2 4-4"/></svg><b>Park office panel</b><span>Rangers see hotspots, send staff, get a cleaning round and a map of signal gaps for mobile operators.</span></div>
+          <div><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="7"/><path d="M12 9v4l3 2M9 3h6"/></svg><b>Safety check-in</b><span>Say when you will be back. If you are late, your contact gets an SMS with your last point.</span></div>
+          <div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4z"/><path d="M14 14h2v2h-2zM18 18h2v2h-2zM14 18h2M18 14h2"/></svg><b>Relay by QR</b><span>No signal? Pass your reports and last point to a traveler you meet; their phone sends them later.</span></div>
+          <div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-6 8 6v9H4z"/><path d="M10 20v-5h4v5"/></svg><b>Facilities from local hosts</b><span>Guesthouses and cafés near the park open their toilets, showers, water and Wi-Fi. Buy a pass online; it works with no signal.</span></div>
+          <div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v12H4z"/><path d="M9 7V5h6v2M4 12h16"/></svg><b>Host cabinet</b><span>Hosts set prices, open or close a facility, check passes offline and see their income.</span></div>
         </div>
         <div class="pk-hbtn"><button class="btn btn-gold" data-goview="parks">Open the park map</button><button class="btn btn-line" data-goview="office">Park office panel</button><button class="btn btn-line" data-goview="host">For hosts</button></div>
         <div id="hpPacks" class="pk-hpacks"></div>
       </div>
-      <div class="pk-hstats" id="hpStats"></div>
+      <div class="pk-hside">
+        <figure class="pk-hphoto"><img src="https://commons.wikimedia.org/wiki/Special:FilePath/Kolsai_lake.jpg?width=900" alt="Kolsai lake in the Tian Shan" loading="lazy" onerror="this.parentNode.classList.add('noimg')"><figcaption><span class="pk-hnet">No signal · 3 reports saved</span><span class="pk-hsent">Sent when the signal returns</span></figcaption></figure>
+        <div class="pk-hstats" id="hpStats"></div>
+      </div>
     </div>
   </section>
   <section class="block" id="tours">
@@ -726,6 +729,7 @@ html.intro-done #view-home .hero-grid>*:nth-child(2){animation-delay:.14s}
       </div>
       <div class="legend" id="revFilter"></div>
       <div class="reviews" id="reviewList"></div>
+      <div class="rev-more"><button class="btn btn-line" id="revMore" type="button" hidden><span>Show all reviews</span> <span class="num" translate="no"></span></button></div>
       <p class="src" style="margin-top:14px">Sample reviews written for this prototype; Samruk Travel is a fictional company. In the real product, reviews are pulled from Google and Tripadvisor.</p>
     </div>
   </section>
@@ -1354,7 +1358,7 @@ $('#view-search').addEventListener('click',e=>{const c=e.target.closest('[data-t
 
 function renderHome(){
   $('#heroArt').innerHTML=`<img src="${commonsImg(HERO_PHOTO,1920)}" alt="Big Almaty Lake and the snowy Peak of Soviets in the Tian Shan mountains" onerror="this.remove()">`;$('#heroCredit').href=commonsPage(HERO_PHOTO);
-  $('#tourGrid').innerHTML=TOURS.filter(t=>!t.more).map(tourCard).join('');
+  $('#tourGrid').innerHTML=TOURS.filter(t=>!t.more).map(tourCard).join('')+`<div class="tour-cta"><div class="eyebrow">Your own route</div><h3>Not sure which route to pick?</h3><p>Tell the planner how many days you have and what you like. It picks a route and shows what local hosts charge.</p><div class="tour-cta-btns"><button class="btn btn-gold" type="button" onclick="document.querySelector('.planner').scrollIntoView({behavior:'smooth',block:'center'})">Open the planner</button><button class="btn btn-line" type="button" data-goview="parks">Park map</button></div></div>`;
   if(!$('#view-search').hidden)renderSearch();
   $('#guideList').innerHTML=GUIDES.map(g=>`<div class="guide"><span class="ava" style="background:${g.c}">${g.n[0]}</span><div><b>${g.n}</b><small>${g.l}</small></div></div>`).join('');
   renderReviews();
@@ -1373,10 +1377,12 @@ function renderReviews(){
    <div class="rhist" role="group" aria-label="Filter by rating"><small class="muted">Filter by rating</small>${cnt.map(([n,c])=>`<button class="rbar" data-stars="${n}" aria-pressed="${revStars===n}" ${c?'':'disabled'} aria-label="${n} stars: ${c} reviews"><span class="rlab">${n} ★</span><span class="rtrack"><span class="rfill" style="width:${c/max*100}%"></span></span><span class="num">${c}</span></button>`).join('')}
    <button class="rall" data-stars="0" aria-pressed="${revStars===0}">All ratings</button></div>`;
   $('#revFilter').innerHTML=[['all','All trips',REVIEWS.length],...TOURS.map(t=>[t.id,t.name,REVIEWS.filter(r=>r.tour===t.id).length])].map(([id,n,c])=>`<button data-rev="${id}" aria-pressed="${revTour===id}">${id==='all'?'':`<span class="dot" style="background:${COLORS[id]}"></span>`}${esc(n)} · ${c}</button>`).join('');
-  const list=inTour.filter(r=>!revStars||r.s===revStars);
-  $('#reviewList').innerHTML=list.length?list.map(r=>{const t=TOURS.find(x=>x.id===r.tour);return `<div class="review"><header><b>${esc(r.who)}</b>${stars(r.s)}</header><p>${esc(r.t)}</p>${r.re?`<div class="rreply"><b>Reply from Samruk Travel</b><p>${esc(r.re)}</p></div>`:''}<span class="tour-tag"><span class="dot" style="background:${COLORS[r.tour]}"></span>${esc(t.name)} · sample review</span></div>`;}).join(''):'<p class="muted">No reviews with this rating for this trip yet.</p>';
+  const all=inTour.filter(r=>!revStars||r.s===revStars),list=revAll?all:all.slice(0,9);
+  $('#reviewList').innerHTML=list.length?list.map(r=>{const t=TOURS.find(x=>x.id===r.tour);return `<div class="review"><header><b>${esc(r.who)}</b>${stars(r.s)}</header><p>${esc(r.t)}</p>${r.re?`<div class="rreply"><b>Reply from Samruk Travel</b><p>${esc(r.re)}</p></div>`:''}<span class="tour-tag"><span class="dot" style="background:${COLORS[r.tour]}"></span>${esc(t.name)} · sample review</span></div>`;}).join(''):'<p class="muted">No reviews with this rating for this trip yet.</p>'
+  const mb=$('#revMore');if(mb){mb.hidden=all.length<=list.length;mb.querySelector('.num').textContent=all.length;}
 }
-let revStars=0;
+let revStars=0,revAll=false;
+$('#revMore').onclick=()=>{revAll=true;renderReviews();};
 $('#ratingSum').onclick=e=>{const b=e.target.closest('[data-stars]');if(!b||b.disabled)return;const n=+b.dataset.stars;revStars=revStars===n?0:n;renderReviews();};
 $('#revFilter').onclick=e=>{const b=e.target.closest('[data-rev]');if(!b)return;revTour=b.dataset.rev;revStars=0;renderReviews();};
 
