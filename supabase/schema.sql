@@ -210,3 +210,8 @@ insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 --                          headers := '{"Authorization": "Bearer SERVICE_ROLE_KEY"}'::jsonb);
 --   $cron$);
 -- Without Twilio the office panel still shows overdue visitors with their last point.
+
+-- the server functions use the service role; give it the tables explicitly (newer projects do not grant it by default)
+grant usage on schema public to service_role;
+grant all on public.reports, public.checkins, public.hosts, public.passes, public.host_applications to service_role;
+grant select on public.checkins_public to service_role;
